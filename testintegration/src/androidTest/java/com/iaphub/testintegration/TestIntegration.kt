@@ -105,6 +105,7 @@ class TestIntegration {
             callbackCount++
             if (callbackCount == 3) {
                 waiter.assertEquals(1, requestCount)
+                waiter.assertEquals(0, this.userUpdateCount)
                 // Check products report
                 val status = Iaphub.getBillingStatus()
                 waiter.assertEquals("billing_unavailable", status.error?.code)
@@ -114,6 +115,7 @@ class TestIntegration {
                 Iaphub.testing.storeReady = true
                 Iaphub.getProductsForSale { err, products ->
                     waiter.assertEquals(1, requestCount)
+                    waiter.assertEquals(1, this.userUpdateCount)
                     waiter.assertEquals(1, products?.size)
                     waiter.assertEquals("consumable", products?.get(0)?.sku)
                     waiter.assertEquals(null, err)
