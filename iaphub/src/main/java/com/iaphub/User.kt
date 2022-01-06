@@ -442,22 +442,28 @@ internal class User {
         "framework" to Iaphub.sdk,
         "code_version" to Config.sdkVersion,
         "person" to mapOf("id" to Iaphub.appId),
-        "context" to "${Iaphub.appId}/${Iaphub.user?.id ?: ""}"
+        "context" to "${Iaphub.appId}/${Iaphub.user?.id ?: ""}",
+        "custom" to mapOf(
+          "osVersion" to Iaphub.osVersion,
+          "sdkVersion" to Iaphub.sdkVersion,
+          "userIsInitialized" to this.isInitialized,
+          "userHasProducts" to (this.productsForSale.isNotEmpty() || this.activeProducts.isNotEmpty())
+        )
       )
     )
+    // Add params
     val custom = options["params"] as? Map<String, Any?>
-    if (custom != null) {
-      params["data"]?.set("custom", custom + mapOf(
-        "userIsInitialized" to this.isInitialized,
-        "userHasProducts" to (this.productsForSale.isNotEmpty() || this.activeProducts.isNotEmpty())
-      ))
+    val originalCustom = params["data"]?.get("custom") as? Map<String, Any?>
+    if (custom != null && originalCustom != null) {
+      params["data"]?.set("custom", originalCustom + custom);
     }
+    // Add fingerprint
     val fingerprint = options["fingerprint"]
     if (fingerprint != null) {
       params["data"]?.set("fingerprint", fingerprint)
     }
     // Post log
-    this.api?.postLog(params) { _, _ ->
+    this.api.postLog(params) { _, _ ->
       // No need to do anything if there is an error
     }
   }

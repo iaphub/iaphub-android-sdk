@@ -82,8 +82,6 @@ class IaphubError {
     Iaphub.user?.sendLog(mapOf(
       "message" to this.message,
       "params" to this.params + mapOf(
-        "osVersion" to Iaphub.osVersion,
-        "sdkVersion" to Iaphub.sdkVersion,
         "code" to this.code,
         "subcode" to this.subcode
       ),
