@@ -251,6 +251,19 @@ open class SDK: LifecycleObserver
   }
 
   /**
+   * Get billing status
+   */
+  fun getBillingStatus(): BillingStatus {
+    // Check the sdk is started
+    val user = this.user
+    if (user == null) {
+      return BillingStatus(error=IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.start_missing, "getBillingStatus failed"))
+    }
+    // Return report
+    return user.getBillingStatus()
+  }
+
+  /**
    * Set OnUserUpdate listener
    */
   fun setOnUserUpdateListener(listener: () -> Unit) {

@@ -888,6 +888,13 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
   }
 
   /**
+   * Get list of sku details from cache
+   */
+  private fun getSkusDetailsFromCache(skus: List<String>): List<com.android.billingclient.api.ProductDetails> {
+    return skus.map { sku -> this.cachedSkusDetails.get(sku) }.filterNotNull()
+  }
+
+  /**
    * Get list of sku details
    */
   private fun getSkusDetails(skus: List<String>, type: String, completion: (IaphubError?, List<com.android.billingclient.api.ProductDetails>?) -> Unit) {
@@ -899,7 +906,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
     this.whenBillingReady { err, billing ->
       // Return an error if the billing isn't ready
       if (err != null || billing == null) {
-        return@whenBillingReady completion(err, null)
+        return@whenBillingReady completion(err, getSkusDetailsFromCache(skus))
       }
       // Build request
       val productsList = skus.map { sku ->
@@ -912,16 +919,8 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
       billing.queryProductDetailsAsync(params.build()) { billingResult, productsDetailsList ->
         // Check response code
         if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
-          // If there is an error, try to get the sku details from the cache
-          val cachedList = skus.map { sku -> this.cachedSkusDetails.get(sku) }.filterNotNull()
-          // Return cached list instead of error if we found all the skus in cache
-          if (cachedList.size == skus.size) {
-            return@queryProductDetailsAsync completion(null, cachedList)
-          }
           // Otherwise return an error
-          return@queryProductDetailsAsync completion(
-            this.getErrorFromBillingResult(billingResult, "queryProductDetailsAsync"), null
-          )
+          return@queryProductDetailsAsync completion(this.getErrorFromBillingResult(billingResult, "queryProductDetailsAsync"), getSkusDetailsFromCache(skus))
         }
         // Cache skus details
         skus.forEach { sku ->

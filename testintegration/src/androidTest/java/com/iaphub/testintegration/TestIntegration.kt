@@ -86,16 +86,42 @@ class TestIntegration {
     fun test01_billingReadyTimeout() {
         val waiter = Waiter()
         var callbackCount = 0
+        var requestCount = 0
 
         // Mock billing ready
         Iaphub.testing.storeReady = false
         Iaphub.testing.storeReadyTimeout = 2000
+        // Mock network
+        Iaphub.testing.mockNetworkRequest() { _, route, _ ->
+            if (route.contains("/user") && !route.contains("pricing")) {
+                Log.d("IAPHUB", "-> User request: ${route}")
+                requestCount++
+            }
+            return@mockNetworkRequest null
+        }
         // Callback function
         val callback = fun (err: IaphubError?, products: List<Product>?) {
-            waiter.assertEquals("billing_unavailable", err?.code)
+            waiter.assertEquals(null, err)
+            waiter.assertEquals(0, products?.size)
             callbackCount++
             if (callbackCount == 3) {
-                waiter.resume()
+                Log.d("IAPHUB", "-> Callbacks done")
+                waiter.assertEquals(1, requestCount)
+                // Check products report
+                val status = Iaphub.getBillingStatus()
+                waiter.assertEquals("billing_unavailable", status.error?.code)
+                waiter.assertEquals("billing_ready_timeout", status.error?.subcode)
+                waiter.assertEquals(listOf("consumable"), status.missingProductIds)
+                // Check that the products details will be updated when the store is ready
+                Iaphub.testing.storeReady = true
+                Iaphub.getProductsForSale { err, products ->
+                    waiter.assertEquals(1, requestCount)
+                    waiter.assertEquals(1, products?.size)
+                    waiter.assertEquals("consumable", products?.get(0)?.sku)
+                    waiter.assertEquals(null, err)
+                    // Resume waiter
+                    waiter.resume()
+                }
             }
         }
         // Execute concurrent whenBillingReady

@@ -12,6 +12,8 @@ internal class User {
   internal var iaphubId: String? = null
   // Products for sale of the user
   internal var productsForSale: List<Product> = listOf()
+  // Filtered products for sale of the user
+  internal var filteredProductsForSale: List<Product> = listOf()
   // Active products of the user
   internal var activeProducts: List<ActiveProduct> = listOf()
   // Pricings
@@ -48,6 +50,8 @@ internal class User {
   internal var updateDate: Date? = null
   // If the deferred purchase events should be consumed
   internal var enableDeferredPurchaseListener: Boolean = true
+  // Last error returned when fetching the products details
+  internal var productsDetailsError: IaphubError? = null
 
 
   constructor(id: String?, sdk: SDK, enableDeferredPurchaseListener: Boolean = true, onUserUpdate: (() -> Unit)? = null, onDeferredPurchase: ((ReceiptTransaction) -> Unit)? = null) {
@@ -158,7 +162,8 @@ internal class User {
    * Refresh user
    */
   fun refresh(interval: Long, force: Boolean = false, completion: ((IaphubError?, Boolean, Boolean) -> Unit)? = null) {
-    // Check if we need to fetch the user
+    var shouldFetch = false
+
     if (
       // Refresh forced
       force ||
@@ -171,36 +176,45 @@ internal class User {
       // Receit post date more recent than the user fetch date
       this.receiptPostDate?.after(this.fetchDate!!) == true
     ) {
-      // Fetch user
-      this.fetch {err, isUpdated ->
-        // Check if there is an error
-        if (err != null) {
-          // Return an error if the user has never been fetched
-          if (this.fetchDate == null) {
+      shouldFetch = true
+    }
+    // Update products details if we had an error or filtered products
+    if (!shouldFetch && (this.productsDetailsError != null || this.filteredProductsForSale.isNotEmpty())) {
+      this.updateFilteredProducts() { isUpdated ->
+        completion?.let { it(null, false, isUpdated) }
+      }
+      return
+    }
+    // Call completion if fetch not requested
+    if (!shouldFetch) {
+      completion?.let { it(null, false, false) }
+      return
+    }
+    // Otherwise fetch user
+    this.fetch() {err, isUpdated ->
+      // Check if there is an error
+      if (err != null) {
+        // Return an error if the user has never been fetched
+        if (this.fetchDate == null) {
+          completion?.let { it(err, false, false) }
+        }
+        // Otherwise check if there is an expired subscription in the active products
+        else {
+          val expiredSubscription = this.activeProducts.find { product -> product.expirationDate != null && product.expirationDate.before(Date()) }
+          // If we have an expired subscription, return an error
+          if (expiredSubscription != null) {
             completion?.let { it(err, false, false) }
           }
-          // Otherwise check if there is an expired subscription in the active products
+          // Otherwise return no error
           else {
-            val expiredSubscription = this.activeProducts.find { product -> product.expirationDate != null && product.expirationDate.before(Date()) }
-            // If we have an expired subscription, return an error
-            if (expiredSubscription != null) {
-              completion?.let { it(err, false, false) }
-            }
-            // Otherwise return no error
-            else {
-              completion?.let { it(null, false, false) }
-            }
+            completion?.let { it(null, false, false) }
           }
         }
-        // Otherwise it's a success
-        else {
-          completion?.let { it(null, true, isUpdated) }
-        }
       }
-    }
-    // Otherwise no need to fetch the user
-    else {
-      completion?.let { it(null, false, false) }
+      // Otherwise it's a success
+      else {
+        completion?.let { it(null, true, isUpdated) }
+      }
     }
   }
 
@@ -271,6 +285,15 @@ internal class User {
       // Otherwise return the products
       completion(null, this.productsForSale)
     }
+  }
+
+  /*
+   * Get billing status
+   */
+  fun getBillingStatus(): BillingStatus {
+    val filteredProductIds = this.filteredProductsForSale.map { product -> product.sku }
+
+    return BillingStatus(error=this.productsDetailsError, filteredProductIds=filteredProductIds)
   }
 
   /*
@@ -446,11 +469,9 @@ internal class User {
    */
   @Synchronized
   fun fetch(completion: (IaphubError?, Boolean) -> Unit) {
-    var isUpdated = false
-
     // Check if the user id is valid
     if (!this.isAnonymous() && !this.isValidId(this.id)) {
-      return completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.user_id_invalid, "fetch failed, id: ${this.id}", mapOf("userId" to this.id)), isUpdated)
+      return completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.user_id_invalid, "fetch failed, id: ${this.id}", mapOf("userId" to this.id)), false)
     }
     // Add completion to the requests
     this.fetchRequests.add(completion)
@@ -459,8 +480,8 @@ internal class User {
       return
     }
     this.isFetching = true
-    // Method to complete fetch request
-    fun completeFetchRequest(err: IaphubError?) {
+    // Method to complete fetch requests
+    fun completeFetchRequests(err: IaphubError?, isUpdated: Boolean) {
       val fetchRequests = this.fetchRequests
 
       // Clean requests
@@ -479,11 +500,12 @@ internal class User {
         this.isInitialized = true
       }
       // Call requests with the error
+      var requestIsUpdated = isUpdated
       fetchRequests.forEach { request ->
-        request(err, isUpdated)
+        request(err, requestIsUpdated)
         // Only mark as updated for the first request
-        if (isUpdated) {
-          isUpdated = false
+        if (requestIsUpdated) {
+          requestIsUpdated = false
           this.onUserUpdate?.let { it() }
         }
       }
@@ -492,43 +514,9 @@ internal class User {
     this.getCacheData {
       // Get data from API
       this.api.getUser { err, data ->
-        var userData = data
-        // Check error
-        if (err != null) {
-          // Clear products if the platform is disabled
-          if (err.code == "server_error" && err.subcode == "platform_disabled") {
-            userData = mapOf(
-              "productsForSale" to emptyList<Any>(),
-              "activeProducts" to emptyList<Any>()
-            )
-          }
-          // Otherwise return an error
-          else {
-            return@getUser completeFetchRequest(err)
-          }
-        }
-        // Check data
-        if (userData == null) {
-          return@getUser completeFetchRequest(IaphubError(IaphubErrorCode.unexpected))
-        }
-        // Save products dictionary
-        val oldData = this.getData(productsOnly = true)
-        // Update data
-        this.update(userData) { err ->
-          // Check error
-          if (err != null) {
-            return@update completeFetchRequest(err)
-          }
-          // Check if the user has been updated
-          val newData = this.getData(productsOnly = true)
-          if (this.isInitialized && !this.sameProducts(newData, oldData)) {
-            isUpdated = true
-          }
-          // Update pricing
-          this.updatePricings { err ->
-            // No need to throw an error if the pricing update fails, the system can work without it
-            completeFetchRequest(null)
-          }
+        // Update user using API data
+        this.updateFromApiData(err, data) { updateErr, isUpdated ->
+          completeFetchRequests(updateErr, isUpdated)
         }
       }
     }
@@ -553,6 +541,52 @@ internal class User {
       ))
     }
     return data
+  }
+
+  /*
+   * Update user using API data
+   */
+  private fun updateFromApiData(err: IaphubError?, data: Map<String, Any>?, completion: (IaphubError?, Boolean) -> Unit) {
+    var userData = data
+    var isUpdated = false
+
+    // Check error
+    if (err != null) {
+      // Clear products if the platform is disabled
+      if (err.code == "server_error" && err.subcode == "platform_disabled") {
+        userData = mapOf(
+          "productsForSale" to emptyList<Any>(),
+          "activeProducts" to emptyList<Any>()
+        )
+      }
+      // Otherwise return an error
+      else {
+        return completion(err, isUpdated)
+      }
+    }
+    // Check data
+    if (userData == null) {
+      return completion(IaphubError(IaphubErrorCode.unexpected), isUpdated)
+    }
+    // Save products dictionary
+    val oldData = this.getData(productsOnly = true)
+    // Update data
+    this.update(userData) { updateErr ->
+      // Check error
+      if (updateErr != null) {
+        return@update completion(updateErr, isUpdated)
+      }
+      // Check if the user has been updated
+      val newData = this.getData(productsOnly = true)
+      if (this.isInitialized && !this.sameProducts(newData, oldData)) {
+        isUpdated = true
+      }
+      // Update pricing
+      this.updatePricings { _ ->
+        // No need to throw an error if the pricing update fails, the system can work without it
+        completion(null, isUpdated)
+      }
+    }
   }
 
   /*
@@ -583,35 +617,22 @@ internal class User {
         params=mapOf("item" to item)
       )
     }
-    val products = productsForSale + activeProducts
-    // Extract sku and filter empty sku (could happen with an active product from another platform)
-    val productSkus = (products.map { product -> product.sku } + events.map { event -> event.transaction.sku })
-      .filter { sku -> sku != "" }
-      .distinct()
+    val eventTransactions = events.map { event -> event.transaction }
+    val products: List<Product> = productsForSale + activeProducts + eventTransactions
     // Get products details
-    this.sdk.store?.getProductsDetails(productSkus) { err, productsDetails ->
-      // Check err
-      if (err != null) {
-        return@getProductsDetails completion(err)
-      }
-      // Otherwise assign data to the product
-      productsDetails?.forEach { productDetail ->
-        val product = products.find { product -> product.sku == productDetail.sku }
+    this.updateProductsDetails(products) {
+      val oldFilteredProducts = this.filteredProductsForSale
 
-        product?.setDetails(productDetail)
-        // Same for events
-        events.forEach { event ->
-          if (event.transaction.sku == productDetail.sku) {
-            event.transaction.setDetails(productDetail)
-          }
-        }
-      }
-      // Filter products for sale with no details
-      this.productsForSale = productsForSale.filter { product ->
-        if (product.details == null) {
+      // Filter products for sale
+      this.productsForSale = productsForSale.filter { product -> product.details != null }
+      this.filteredProductsForSale = productsForSale.filter { product -> product.details == null }
+      // Check filtered products
+      this.filteredProductsForSale.forEach { product ->
+        var oldFilteredProduct = oldFilteredProducts.find { it.sku == product.sku }
+        // Trigger log only if it is a new filtered product
+        if (oldFilteredProduct == null) {
           IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.product_missing_from_store, "sku: ${product.sku}", mapOf("sku" to product.sku))
         }
-        return@filter product.details != null
       }
       // No need to filter active products
       this.activeProducts = activeProducts
@@ -623,6 +644,50 @@ internal class User {
       this.processEvents(events)
       // Call completion
       completion(null)
+    }
+  }
+
+  /*
+   * Update products details
+   */
+  private fun updateProductsDetails(products: List<Product>, completion: () -> Unit) {
+    // Extract sku and filter empty sku (could happen with an active product from another platform)
+    var productSkus = products.map { product -> product.sku }.filter { sku -> sku != "" }.distinct()
+
+    // Get products details
+    this.sdk.store?.getProductsDetails(productSkus) { err, productsDetails ->
+      // Note: We're not calling with completion handler with the error of getProductsDetails
+      // We need to complete the update even though an error such as 'billing_unavailable' is returned
+      // When there is an error getProductsDetails can still return products details (they might be in cache)
+      // So instead we're saving the error
+      this.productsDetailsError = err
+      // Assign details to the product
+      productsDetails?.forEach { productDetail ->
+        products
+        .filter { product -> product.sku == productDetail.sku }
+        .forEach { product ->
+          product.setDetails(productDetail)
+        }
+      }
+      // Call completion
+      completion()
+    }
+  }
+
+  /*
+   * Update filtered products
+   */
+  private fun updateFilteredProducts(completion: (Boolean) -> Unit) {
+    // Get products details
+    this.updateProductsDetails(this.filteredProductsForSale) {
+      // Detect recovered products
+      val recoveredProducts = this.filteredProductsForSale.filter { product -> product.details != null }
+      // Add to list of products for sale
+      this.productsForSale = this.productsForSale + recoveredProducts
+      // Update filtered products for sale
+      this.filteredProductsForSale = this.filteredProductsForSale.filter { product -> product.details == null }
+      // Call completion
+      completion(recoveredProducts.isNotEmpty())
     }
   }
 
