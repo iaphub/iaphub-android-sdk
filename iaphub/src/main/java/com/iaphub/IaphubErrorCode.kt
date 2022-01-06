@@ -35,11 +35,10 @@ internal enum class IaphubBillingUnavailableErrorCode(override val message: Stri
 internal enum class IaphubUnexpectedErrorCode(override val message: String): IaphubErrorProtocol {
   start_missing("iaphub not started"),
   receipt_validation_response_invalid("receipt validation failed, response invalid"),
-  anonymous_id_keychain_save_failed("saving anonymous id to keychain failed"),
   get_cache_data_json_parsing_failed("get cache data json parsing failed"),
   get_cache_data_item_parsing_failed("error parsing item of cache data"),
-  save_cache_data_json_invalid("cannot save cache date, not a valid json object"),
-  save_cache_keychain_failed("cannot save cache date, save to keychain failed"),
+  save_cache_data_json_invalid("cannot save cache data, not a valid json object"),
+  save_cache_anonymous_id_failed("cannot save anonymous id in cache"),
   user_id_invalid("user id invalid"),
   update_item_parsing_failed("error parsing item of api in order to update user"),
   product_missing_from_store("google play did not return the product, the product has been filtered (https://www.iaphub.com/docs/troubleshooting/product-not-returned)"),

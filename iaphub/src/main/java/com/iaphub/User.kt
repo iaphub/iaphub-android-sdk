@@ -756,16 +756,20 @@ internal class User {
     val key = "anonymous_user_id"
     val cacheId = Util.getFromCache(context=this.sdk.context, key=key)
 
+    // Return id from cache if found
     if (cacheId != null) {
       return cacheId
     }
-
+    // Generate new id
     val newId = Config.anonymousUserPrefix + UUID.randomUUID().toString()
-    val result = Util.setToCache(context=this.sdk.context, key=key, value=newId)
-
-    if (result == false) {
-      IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.anonymous_id_keychain_save_failed)
+    // Save new id to cache
+    Util.setToCache(context=this.sdk.context, key=key, value=newId)
+    // Check the id has been saved correctly
+    val id = Util.getFromCache(context=this.sdk.context, key=key)
+    if (id != newId) {
+      IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.save_cache_anonymous_id_failed)
     }
+
     return newId
   }
 
@@ -845,15 +849,11 @@ internal class User {
     }
     else {
       val prefix = if (this.isAnonymous()) "iaphub_user_a" else "iaphub_user"
-      val result = Util.setToCache(
+      Util.setToCache(
         context = this.sdk.context,
         key = "${prefix}_${this.sdk.appId}",
         value = jsonString
       )
-
-      if (result == false) {
-        IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.save_cache_keychain_failed)
-      }
     }
   }
 

@@ -29,14 +29,13 @@ internal object Util {
   /*
    * Save value to cache
    */
-  fun setToCache(context: Context?, key: String, value: String?): Boolean {
+  fun setToCache(context: Context?, key: String, value: String?) {
     if (context != null) {
       val pref = context.getSharedPreferences("iaphub", Context.MODE_PRIVATE)
       val editor = pref.edit()
 
-      return editor.putString(key, value).commit()
+      editor.putString(key, value).commit()
     }
-    return false
   }
 
   /*
