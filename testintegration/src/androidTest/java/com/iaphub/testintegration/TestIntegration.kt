@@ -94,7 +94,6 @@ class TestIntegration {
         // Mock network
         Iaphub.testing.mockNetworkRequest() { _, route, _ ->
             if (route.contains("/user") && !route.contains("pricing")) {
-                Log.d("IAPHUB", "-> User request: ${route}")
                 requestCount++
             }
             return@mockNetworkRequest null
@@ -105,13 +104,12 @@ class TestIntegration {
             waiter.assertEquals(0, products?.size)
             callbackCount++
             if (callbackCount == 3) {
-                Log.d("IAPHUB", "-> Callbacks done")
                 waiter.assertEquals(1, requestCount)
                 // Check products report
                 val status = Iaphub.getBillingStatus()
                 waiter.assertEquals("billing_unavailable", status.error?.code)
                 waiter.assertEquals("billing_ready_timeout", status.error?.subcode)
-                waiter.assertEquals(listOf("consumable"), status.missingProductIds)
+                waiter.assertEquals(listOf("consumable"), status.filteredProductIds)
                 // Check that the products details will be updated when the store is ready
                 Iaphub.testing.storeReady = true
                 Iaphub.getProductsForSale { err, products ->
@@ -700,5 +698,5 @@ class TestIntegration {
         // Wait waiter
         waiter.await(5000)
     }
-
+ 
 }
