@@ -1,0 +1,2 @@
+-keep class com.iaphub.** { *; }
+-keep class com.android.billingclient.** { *; }

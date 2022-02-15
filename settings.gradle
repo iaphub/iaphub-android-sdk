@@ -1,0 +1,4 @@
+include ':examples:example'
+include ':testintegration'
+include ':iaphub'
+rootProject.name = 'IAPHUB'

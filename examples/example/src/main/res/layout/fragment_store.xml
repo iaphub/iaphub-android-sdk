@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context="com.iaphub.example.store.StoreFragment">
+
+    <data>
+        <import type="android.view.View"/>
+        <variable
+            name="app"
+            type="com.iaphub.example.AppModel" />
+        <variable
+            name="store"
+            type="com.iaphub.example.store.StoreViewModel" />
+    </data>
+
+    <com.google.android.flexbox.FlexboxLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        app:flexWrap="wrap"
+        app:flexDirection="column">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            app:layout_flexGrow="1">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_vertical"
+                    android:paddingTop="8dp"
+                    android:text="Products for sale"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:layout_margin="10dp" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/productsForSaleRecyclerView"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    tools:layout_conversion_absoluteHeight="537dp"
+                    tools:layout_conversion_absoluteWidth="402dp"
+                    tools:layout_editor_absoluteX="5dp"
+                    tools:layout_editor_absoluteY="53dp"/>
+
+                <ProgressBar
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:visibility="@{app.productsLoading ? View.VISIBLE : View.GONE}"/>
+
+                <TextView
+                    android:id="@+id/productsForSaleEmpty"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="10dp"
+                    android:textAlignment="center"
+                    android:layout_gravity="center_horizontal"
+                    android:text="No products for sale"
+                    android:visibility="@{(!app.productsLoading &amp;&amp; app.productsForSale.size() == 0) ? View.VISIBLE : View.GONE}"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Active products"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:layout_margin="10dp" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/activeProductsRecyclerView"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    tools:layout_conversion_absoluteHeight="537dp"
+                    tools:layout_conversion_absoluteWidth="402dp"
+                    tools:layout_editor_absoluteX="5dp"
+                    tools:layout_editor_absoluteY="53dp"/>
+
+                <ProgressBar
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:visibility="@{app.productsLoading ? View.VISIBLE : View.GONE}"/>
+
+                <TextView
+                    android:id="@+id/activeProductsEmpty"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="10dp"
+                    android:textAlignment="center"
+                    android:layout_gravity="center_horizontal"
+                    android:text="No active products"
+                    android:visibility="@{(!app.productsLoading &amp;&amp; app.activeProducts.size() == 0) ? View.VISIBLE : View.GONE}"/>
+
+        </LinearLayout>
+
+        <com.google.android.flexbox.FlexboxLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:layout_flexGrow="1"
+                android:text="Restore purchases"
+                android:onClick="@{()->store.restore()}"
+                android:background="?android:attr/selectableItemBackground"
+                android:textColor="@color/black" />
+
+            <Button
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:layout_flexGrow="1"
+                android:text="Logout"
+                android:onClick="@{()->store.logout()}"
+                android:background="?android:attr/selectableItemBackground"
+                android:textColor="@color/black" />
+
+        </com.google.android.flexbox.FlexboxLayout>
+
+    </com.google.android.flexbox.FlexboxLayout>
+
+</layout>

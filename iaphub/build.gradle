@@ -1,0 +1,47 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+
+android {
+    compileSdk compileVersion
+    buildToolsVersion buildToolsVersion
+
+    defaultConfig {
+        minSdk minVersion
+        targetSdk compileVersion
+        buildConfigField 'int', 'VERSION_CODE', "20000"
+        buildConfigField 'String', 'VERSION_NAME', "\"2.0.0\""
+
+        consumerProguardFiles 'consumer-rules.pro'
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    testOptions {
+        unitTests.all {
+            useJUnitPlatform()
+        }
+    }
+}
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:${kotlinVersion}"
+    implementation "org.jetbrains.kotlin:kotlin-reflect:${kotlinVersion}"
+    implementation 'com.android.billingclient:billing-ktx:4.0.0'
+    implementation 'com.squareup.okhttp3:okhttp:4.9.2'
+    implementation 'com.google.code.gson:gson:2.8.9'
+    implementation "androidx.lifecycle:lifecycle-runtime:2.0.0"
+    implementation "androidx.lifecycle:lifecycle-extensions:2.0.0"
+    annotationProcessor "androidx.lifecycle:lifecycle-compiler:2.0.0"
+
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'androidx.test:runner:1.4.0'
+    testImplementation 'androidx.test:rules:1.4.0'
+    testImplementation 'androidx.test:core-ktx:1.4.0'
+    testImplementation 'androidx.test.ext:junit:1.1.1'
+    testImplementation 'net.jodah:concurrentunit:0.4.6'
+    testRuntimeOnly "org.junit.vintage:junit-vintage-engine:5.8.1"
+}
+
+apply plugin: 'com.vanniktech.maven.publish'

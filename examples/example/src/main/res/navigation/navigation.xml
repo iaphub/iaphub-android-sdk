@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto" android:id="@+id/navigation"
+    xmlns:tools="http://schemas.android.com/tools"
+    app:startDestination="@id/loginFragment">
+
+    <fragment
+        android:id="@+id/loginFragment"
+        android:name="com.iaphub.example.login.LoginFragment"
+        android:label="fragment_login"
+        tools:layout="@layout/fragment_login" >
+        <action
+            android:id="@+id/action_loginFragment_to_storeFragment"
+            app:destination="@id/storeFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/storeFragment"
+        android:name="com.iaphub.example.store.StoreFragment"
+        android:label="fragment_store"
+        tools:layout="@layout/fragment_store" >
+    </fragment>
+
+</navigation>

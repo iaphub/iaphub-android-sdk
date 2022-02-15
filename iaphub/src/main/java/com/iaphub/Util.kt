@@ -1,0 +1,195 @@
+package com.iaphub
+
+import android.content.Context
+import android.os.Handler
+import android.os.Looper
+import com.google.gson.Gson
+import java.lang.Exception
+import java.text.ParsePosition
+import java.util.*
+import kotlin.concurrent.thread
+
+internal object Util {
+
+  private var mainDispatchDisabled = false
+
+  /*
+   * Get value from cache
+   */
+  fun getFromCache(context: Context?, key: String): String? {
+    if (context != null) {
+      val pref = context.getSharedPreferences("iaphub", Context.MODE_PRIVATE)
+
+      return pref.getString(key, null)
+    }
+    return null
+  }
+
+  /*
+   * Save value to cache
+   */
+  fun setToCache(context: Context?, key: String, value: String?): Boolean {
+    if (context != null) {
+      val pref = context.getSharedPreferences("iaphub", Context.MODE_PRIVATE)
+      val editor = pref.edit()
+
+      return editor.putString(key, value).commit()
+    }
+    return false
+  }
+
+  /*
+   * Convert ISO string to date
+   */
+  fun dateFromIsoString(str: String?): Date? {
+    if (str == null) return null
+
+    var date: Date? = null
+
+    try {
+      date = ISO8601Utils.parse(str, ParsePosition(0))
+    }
+    catch (ex: Exception) {
+      // Nothing to do here
+    }
+
+    return date
+  }
+
+  /*
+   * Convert date to ISO string
+   */
+  fun dateToIsoString(date: Date?): String? {
+    if (date == null) return null
+
+    return ISO8601Utils.format(date)
+  }
+
+  /*
+   * Convert map to json string
+   */
+  fun mapToJsonString(jsonMap: Map<String, Any>): String {
+    return Gson().toJson(jsonMap)
+  }
+
+  /*
+   * Convert json string to map
+   */
+  fun jsonStringToMap(jsonString: String): Map<String, Any>? {
+    var jsonMap: Map<String, Any>? = HashMap()
+
+    // Parse json
+    try {
+      if (jsonMap != null) {
+        jsonMap = Gson().fromJson(jsonString, jsonMap.javaClass)
+      }
+    }
+    catch (err: Exception) {
+      jsonMap = null
+    }
+
+    return jsonMap
+  }
+
+  /*
+   * Parse items
+   */
+  inline fun <reified T: Parsable>parseItems(data: Any?, failure: (Exception, Map<String, Any>) -> Unit): List<T> {
+    val arr: List<Map<String, Any>> = (data as? List<Map<String, Any>>) ?: listOf()
+    val items: MutableList<T> = mutableListOf()
+
+    arr.forEach { elem ->
+      try {
+        val item = T::class.constructors.first { it.parameters.isEmpty() == false }.call(elem)
+        items.add(item)
+      }
+      catch (err: Exception) {
+        failure(err, elem)
+      }
+    }
+
+    return items
+  }
+
+  /*
+   * Applies the function iterator to each item in arr in series.
+   */
+  fun <ListType, ErrorType>eachSeries(
+    list: List<ListType>,
+    iterator: (item: ListType, callback: (error: ErrorType?) -> Unit) -> Unit,
+    finished: (error: ErrorType?) -> Unit
+  ) {
+    val list: MutableList<ListType> = list.toMutableList()
+    var isFinishedCalled = false
+
+    val finishedOnce = { error: ErrorType? ->
+      if (!isFinishedCalled) {
+        isFinishedCalled = true
+        finished(error)
+      }
+    }
+
+    var next: (() -> Unit)? = null
+    next = { ->
+      if (list.isNotEmpty()) {
+        val item = list.removeAt(0)
+
+        iterator(item) { error ->
+          if (error != null) {
+            finishedOnce(error)
+          }
+          else {
+            next?.let { it() }
+          }
+        }
+      }
+      else {
+        finishedOnce(null)
+      }
+    }
+
+    next()
+  }
+
+  /**
+   * Dispatch to main thread
+   */
+  fun disableMainDispatch(value: Boolean) {
+    this.mainDispatchDisabled = value
+  }
+
+  /**
+   * Dispatch to main thread
+   */
+  private var dispatchHandler: Handler? = null
+  fun dispatchToMain(action: () -> Unit) {
+    var handler = this.dispatchHandler
+
+    if (this.mainDispatchDisabled) {
+      action()
+    }
+    else {
+      if (handler == null) {
+        this.dispatchHandler = Handler(Looper.getMainLooper())
+        handler = this.dispatchHandler
+      }
+      if (Thread.currentThread() != Looper.getMainLooper().thread) {
+        handler?.post(action)
+      } else {
+        action()
+      }
+    }
+  }
+
+  /**
+   * Dispatch out of main thread
+   */
+  fun dispatch(action: () -> Unit) {
+    if (Thread.currentThread() == Looper.getMainLooper().thread) {
+      thread { action() }
+    } else {
+      action()
+    }
+  }
+
+}
