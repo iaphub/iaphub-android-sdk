@@ -8,8 +8,8 @@ android {
     defaultConfig {
         minSdk minVersion
         targetSdk compileVersion
-        buildConfigField 'int', 'VERSION_CODE', "20000"
-        buildConfigField 'String', 'VERSION_NAME', "\"2.0.0\""
+        versionCode 1
+        versionName "2.0.0-SNAPSHOT"
 
         consumerProguardFiles 'consumer-rules.pro'
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -17,6 +17,9 @@ android {
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
+    }
+    kotlinOptions {
+        jvmTarget = '1.8'
     }
     testOptions {
         unitTests.all {
@@ -42,6 +45,14 @@ dependencies {
     testImplementation 'androidx.test.ext:junit:1.1.1'
     testImplementation 'net.jodah:concurrentunit:0.4.6'
     testRuntimeOnly "org.junit.vintage:junit-vintage-engine:5.8.1"
+}
+
+allprojects {
+    plugins.withId("com.vanniktech.maven.publish") {
+        mavenPublish {
+            sonatypeHost = "S01"
+        }
+    }
 }
 
 apply plugin: 'com.vanniktech.maven.publish'
