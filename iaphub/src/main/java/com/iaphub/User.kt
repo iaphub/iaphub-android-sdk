@@ -88,7 +88,13 @@ internal class User {
    * Restore products
    */
   fun restore(completion: (IaphubError?) -> Unit) {
-    this.sdk.store?.restore(completion)
+    // Launch restore
+    this.sdk.store?.restore() { err ->
+      // Refresh user
+      this.refresh(interval = 0, force = true) { _, _, _ ->
+        completion(err)
+      }
+    }
   }
 
   /*
