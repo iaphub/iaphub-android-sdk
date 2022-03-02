@@ -54,7 +54,30 @@ internal class Network {
    * Send a request
    */
   fun send(type: String, route: String, params: Map<String, Any> = emptyMap(), timeout: Long = 6, completion: (IaphubError?, Map<String, Any>?) -> Unit) {
-    this.sendRequest(type, route, params, timeout, completion)
+    // Retry request up to 3 times with a delay of 1 second
+    Util.retry<Map<String, Any>>(
+      times=3,
+      delay=1,
+      task={ callback ->
+        this.sendRequest(type=type, route=route, params=params, timeout=timeout) { err, data, httpResponse ->
+          // Retry request if the request failed with a network error
+          if (err != null && err.code == "network_error") {
+            callback(true, err, data)
+          }
+          // Retry request if the request failed with status code >= 500
+          else if (httpResponse != null && httpResponse.code >= 500) {
+            callback(true, err, data)
+          }
+          // Otherwise do not retry
+          else {
+            callback(false, err, data)
+          }
+        }
+      },
+      completion={ err, data ->
+        completion(err, data)
+      }
+    )
   }
 
   /***************************** PRIVATE ******************************/
@@ -62,12 +85,12 @@ internal class Network {
   /**
    * Send a request
    */
-  fun sendRequest(type: String, route: String, params: Map<String, Any> = emptyMap(), timeout: Long = 6, completion: (IaphubError?, Map<String, Any>?) -> Unit) {
+  fun sendRequest(type: String, route: String, params: Map<String, Any> = emptyMap(), timeout: Long = 6, completion: (IaphubError?, Map<String, Any>?, Response?) -> Unit) {
     // Return mock if defined
     if (this.mock != null) {
       val response = this.mock?.let { it(type, route, params) }
       if (response != null) {
-        return completion(null, response)
+        return completion(null, response, null)
       }
     }
     // Otherwise send request
@@ -81,7 +104,7 @@ internal class Network {
       var url = HttpUrl.Builder()
       // Build url
       if (urlBase == null) {
-        return completion(IaphubError(IaphubErrorCode.network_error, "url invalid"), null)
+        return completion(IaphubError(IaphubErrorCode.network_error, "url invalid"), null, null)
       }
       url.scheme(urlBase.scheme)
       url.host(urlBase.host)
@@ -112,7 +135,7 @@ internal class Network {
       client.newCall(request.build()).enqueue(object : Callback {
         // When the request fails
         override fun onFailure(call: Call, err: IOException) {
-          completion(IaphubError(IaphubErrorCode.network_error, err.message ?: ""), null)
+          completion(IaphubError(IaphubErrorCode.network_error, err.message ?: ""), null, null)
         }
         // When the request succeed
         override fun onResponse(call: Call, response: Response) {
@@ -121,26 +144,26 @@ internal class Network {
             val jsonString = response.body?.string()
             // Check that json string isn't empty
             if (jsonString == null) {
-              return completion(IaphubError(IaphubErrorCode.network_error, "no response (url: ${type} ${route}, status code: ${response.code})"), null)
+              return completion(IaphubError(IaphubErrorCode.network_error, "no response (url: ${type} ${route}, status code: ${response.code})"), null, response)
             }
             // Parse json
             var jsonMap = Util.jsonStringToMap(jsonString)
             if (jsonMap == null) {
-              return completion(IaphubError(IaphubErrorCode.network_error, "response parsing failed (url: ${type} ${route}, status code: ${response.code})"), null)
+              return completion(IaphubError(IaphubErrorCode.network_error, "response parsing failed (url: ${type} ${route}, status code: ${response.code})"), null, response)
             }
             // Check if the response returned an error
             val error = jsonMap["error"] as? String
             if (error != null) {
-              return completion(IaphubError(error, "the IAPHUB server returned the error $error (url: ${type} ${route}, status code: ${response.code})"), null)
+              return completion(IaphubError(error, "the IAPHUB server returned the error $error (url: ${type} ${route}, status code: ${response.code})"), null, response)
             }
             // Otherwise the request is successful, return the data
-            completion(null, jsonMap)
+            completion(null, jsonMap, response)
           }
         }
       })
     }
     catch (err: Exception) {
-      completion(IaphubError(IaphubErrorCode.network_error, err.message ?: ""), null)
+      completion(IaphubError(IaphubErrorCode.network_error, err.message ?: ""), null, null)
     }
   }
 

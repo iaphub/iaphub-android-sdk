@@ -8,6 +8,7 @@ import java.lang.Exception
 import java.text.ParsePosition
 import java.util.*
 import kotlin.concurrent.thread
+import kotlin.concurrent.timerTask
 
 internal object Util {
 
@@ -189,6 +190,28 @@ internal object Util {
       thread { action() }
     } else {
       action()
+    }
+  }
+
+  /**
+   * Retry task multiple times until it succeed
+   */
+  fun <DataType>retry(times: Int, delay: Long, task: ((Boolean, IaphubError?, DataType?) -> Unit) -> Unit, completion: (IaphubError?, DataType?) -> Unit) {
+    task { shouldRetry, error, data ->
+      // If there is no error it is a success
+      if (error == null) {
+        completion(null, data)
+      }
+      // If time left retry
+      else if (times > 0 && shouldRetry) {
+        Timer().schedule(timerTask {
+          retry<DataType>(times - 1, delay, task, completion)
+        }, delay * 1000)
+      }
+      // Otherwise it failed
+      else {
+        completion(error, data)
+      }
     }
   }
 
