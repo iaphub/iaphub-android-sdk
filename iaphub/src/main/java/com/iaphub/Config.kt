@@ -2,7 +2,7 @@ package com.iaphub
 
 internal object Config {
 
-  val api: String = "https://api-b.iaphub.com/v1"
+  val api: String = "https://api.iaphub.com/v1"
 
   val anonymousUserPrefix: String = "a:"
 
