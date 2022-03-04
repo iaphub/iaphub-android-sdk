@@ -43,6 +43,7 @@ class TestIntegration {
             Iaphub.testing.storeLibraryMock=true
             Iaphub.testing.storeReady=true
             Iaphub.testing.lifecycleEvent=false
+            Iaphub.testing.logs=false
             Iaphub.testing.mockedProductDetails = listOf(
                 ProductDetails(mapOf(
                     "sku" to "consumable",

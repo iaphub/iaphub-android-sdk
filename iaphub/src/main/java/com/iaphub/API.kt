@@ -1,7 +1,5 @@
 package com.iaphub
 
-import android.os.Build
-
 internal class API {
 
   val network: Network
@@ -18,7 +16,7 @@ internal class API {
       "platform" to "android",
       "sdk" to this.user.sdk.sdk,
       "sdkVersion" to this.user.sdk.sdkVersion,
-      "osVersion" to "${Build.VERSION.RELEASE}/${Build.VERSION.SDK_INT}"
+      "osVersion" to this.user.sdk.osVersion
     ))
   }
 
@@ -99,4 +97,18 @@ internal class API {
       completion=completion
     )
   }
+
+  /*
+   * Post log
+   */
+  fun postLog(params: Map<String, Any>, completion: (IaphubError?, Map<String, Any>?) -> Unit) {
+    this.network.send(
+      type="POST",
+      route="/app/${this.user.sdk.appId}/log",
+      timeout=2,
+      params=params,
+      completion=completion
+    )
+  }
+
 }

@@ -2,7 +2,7 @@ package com.iaphub
 
 import android.app.Activity
 import android.content.Context
-import android.util.Log
+import android.os.Build
 import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleObserver
@@ -22,6 +22,7 @@ open class SDK: LifecycleObserver
 
   internal var sdk: String = Config.sdk
   internal var sdkVersion: String = Config.sdkVersion
+  internal var osVersion: String = "${Build.VERSION.RELEASE}/${Build.VERSION.SDK_INT}"
   internal var isStarted: Boolean = false
   internal var deviceParams: Map<String, String> = mapOf()
 

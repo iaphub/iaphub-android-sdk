@@ -14,6 +14,8 @@ class SDKTesting(private val sdk: SDK) {
   var storeReadyTimeout: Long? = null
   // Mocked product details
   var mockedProductDetails: List<ProductDetails>? = null
+  // Disable/enable logs
+  var logs: Boolean? = null
 
   /**
    * Notify store ready
