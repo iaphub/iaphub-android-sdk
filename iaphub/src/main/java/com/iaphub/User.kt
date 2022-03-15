@@ -67,7 +67,7 @@ internal class User {
         if (product.type.contains("subscription")) {
           val conflictedSubscription = this.activeProducts.find { item -> item.type.contains("subscription") && item.platform != "android" }
           if (crossPlatformConflict && conflictedSubscription != null) {
-            return@getProductBySku completion(IaphubError(IaphubErrorCode.cross_platform_conflict, "platform: ${conflictedSubscription.platform}"), null)
+            return@getProductBySku completion(IaphubError(IaphubErrorCode.cross_platform_conflict, null,"platform: ${conflictedSubscription.platform}"), null)
           }
         }
         // Check for renewable subscription replace
@@ -281,7 +281,7 @@ internal class User {
   fun login(userId: String, completion: (IaphubError?) -> Unit) {
     // Check that id is valid
     if (!this.isValidId(userId)) {
-      return completion(IaphubError(IaphubErrorCode.unexpected, "User id invalid"))
+      return completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.user_id_invalid, "login failed, id: ${userId}"))
     }
     // Check that the id isn't the same
     if (this.id == userId) {
@@ -332,7 +332,7 @@ internal class User {
     this.api.postReceipt(receipt.getData()) { err, data ->
       // Check for error
       if (err != null || data == null) {
-        return@postReceipt completion(err ?: IaphubError(IaphubErrorCode.unexpected, "post receipt did not return any data"), null)
+        return@postReceipt completion(err ?: IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.post_receipt_data_missing), null)
       }
       // Update receipt post date
       this.receiptPostDate = Date()
@@ -366,7 +366,7 @@ internal class User {
 
     // Check if the user id is valid
     if (!this.isAnonymous() && !this.isValidId(this.id)) {
-      return completion(IaphubError(IaphubErrorCode.unexpected, "user id ${this.id} invalid"), isUpdated)
+      return completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.user_id_invalid, "fetch failed, id: ${this.id}"), isUpdated)
     }
     // Add completion to the requests
     this.fetchRequests.add(completion)
@@ -459,11 +459,21 @@ internal class User {
    * Update user with data
    */
   private fun update(data: Map<String, Any>, completion: (IaphubError?) -> Unit) {
-    val productsForSale = Util.parseItems<Product>(data["productsForSale"]) { err, _ ->
-      IaphubError(IaphubErrorCode.unexpected, "error parsing product for sale of api, product ignored, $err")
+    val productsForSale = Util.parseItems<Product>(data["productsForSale"]) { err, item ->
+      IaphubError(
+        IaphubErrorCode.unexpected,
+        IaphubUnexpectedErrorCode.update_item_parsing_failed,
+        message="product for sale, ${err}",
+        params=mapOf("item" to item)
+      )
     }
-    val activeProducts = Util.parseItems<ActiveProduct>(data["activeProducts"]) { err, _ ->
-      IaphubError(IaphubErrorCode.unexpected, "error parsing active product of api, product ignored, $err")
+    val activeProducts = Util.parseItems<ActiveProduct>(data["activeProducts"]) { err, item ->
+      IaphubError(
+        IaphubErrorCode.unexpected,
+        IaphubUnexpectedErrorCode.update_item_parsing_failed,
+        message="active product, ${err}",
+        params=mapOf("item" to item)
+      )
     }
     val products = productsForSale + activeProducts
     val productSkus = products.map { product -> product.sku }
@@ -482,7 +492,7 @@ internal class User {
       // Filter products for sale with no details
       this.productsForSale = productsForSale.filter { product ->
         if (product.details == null) {
-          IaphubError(IaphubErrorCode.unexpected, "Google Play did not return the product '${product.sku}', the product has been filtered, if the sku is valid your GooglePlay account or sandbox environment is probably not configured properly (https://iaphub.com/docs/set-up-android/configure-sandbox-testing)")
+          IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.product_missing_from_store, "sku: ${product.sku}")
         }
         return@filter product.details != null
       }
@@ -547,7 +557,7 @@ internal class User {
     val result = Util.setToCache(context=this.sdk.context, key=key, value=newId)
 
     if (result == false) {
-      IaphubError(IaphubErrorCode.unexpected, "saving anonymous id to keychain failed")
+      IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.anonymous_id_keychain_save_failed)
     }
     return newId
   }
@@ -568,22 +578,28 @@ internal class User {
 
       if (jsonMap != null && (jsonMap["id"] as? String == this.id)) {
         this.fetchDate = Util.dateFromIsoString(jsonMap["id"] as? String)
-        this.productsForSale = Util.parseItems<Product>(jsonMap["productsForSale"]) { err, _ ->
+        this.productsForSale = Util.parseItems<Product>(jsonMap["productsForSale"]) { err, item ->
           IaphubError(
             IaphubErrorCode.unexpected,
-            "error parsing product for sale of cached data, product ignored, $err"
+            IaphubUnexpectedErrorCode.get_cache_data_item_parsing_failed,
+            message="issue on product for sale, ${err}",
+            params=mapOf("item" to item)
           )
         }
-        this.activeProducts = Util.parseItems<ActiveProduct>(jsonMap["activeProducts"]) { err, _ ->
+        this.activeProducts = Util.parseItems<ActiveProduct>(jsonMap["activeProducts"]) { err, item ->
           IaphubError(
             IaphubErrorCode.unexpected,
-            "error parsing active product of cached data, product ignored, $err"
+            IaphubUnexpectedErrorCode.get_cache_data_item_parsing_failed,
+            message="issue on active product, ${err}",
+            params=mapOf("item" to item)
           )
         }
-        this.pricings = Util.parseItems<ProductPricing>(jsonMap["pricings"]) { err, _ ->
+        this.pricings = Util.parseItems<ProductPricing>(jsonMap["pricings"]) { err, item ->
           IaphubError(
             IaphubErrorCode.unexpected,
-            "error parsing pricing of cached data, pricing ignored, $err"
+            IaphubUnexpectedErrorCode.get_cache_data_item_parsing_failed,
+            message="issue on pricing, ${err}",
+            params=mapOf("item" to item)
           )
         }
       }
@@ -599,7 +615,7 @@ internal class User {
     val jsonString = Util.mapToJsonString(jsonData)
 
     if (jsonString == null) {
-      IaphubError(IaphubErrorCode.unexpected, "cannot save cache data, json serialization failed")
+      IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.save_cache_data_json_invalid)
     }
     else {
       val prefix = if (this.isAnonymous()) "iaphub_user_a" else "iaphub_user"
@@ -610,7 +626,7 @@ internal class User {
       )
 
       if (result == false) {
-        IaphubError(IaphubErrorCode.unexpected, "cannot save cache data")
+        IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.save_cache_keychain_failed)
       }
     }
   }
@@ -683,7 +699,12 @@ internal class User {
       }
     }
     catch(err: Exception) {
-      IaphubError(IaphubErrorCode.unexpected, "cannot compare products", mapOf("err" to err, "data1" to data1, "data2" to data2))
+      IaphubError(
+        IaphubErrorCode.unexpected,
+        IaphubUnexpectedErrorCode.compare_products_failed,
+        message="$err",
+        params=mapOf("data1" to data1, "data2" to data2)
+      )
     }
 
     return isEqual

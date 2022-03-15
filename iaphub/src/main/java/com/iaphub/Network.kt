@@ -75,6 +75,11 @@ internal class Network {
         }
       },
       completion={ err, data ->
+        // Send error if there is one
+        if (err != null) {
+          err.send()
+        }
+        // Call completion
         completion(err, data)
       }
     )
@@ -86,6 +91,8 @@ internal class Network {
    * Send a request
    */
   fun sendRequest(type: String, route: String, params: Map<String, Any> = emptyMap(), timeout: Long = 6, completion: (IaphubError?, Map<String, Any>?, Response?) -> Unit) {
+    val infos = mutableMapOf("type" to type, "route" to route)
+
     // Return mock if defined
     if (this.mock != null) {
       val response = this.mock?.let { it(type, route, params) }
@@ -104,7 +111,7 @@ internal class Network {
       var url = HttpUrl.Builder()
       // Build url
       if (urlBase == null) {
-        return completion(IaphubError(IaphubErrorCode.network_error, "url invalid"), null, null)
+        return completion(IaphubError(IaphubErrorCode.network_error, IaphubNetworkErrorCode.url_invalid, params=infos, silent=true), null, null)
       }
       url.scheme(urlBase.scheme)
       url.host(urlBase.host)
@@ -135,26 +142,28 @@ internal class Network {
       client.newCall(request.build()).enqueue(object : Callback {
         // When the request fails
         override fun onFailure(call: Call, err: IOException) {
-          completion(IaphubError(IaphubErrorCode.network_error, err.message ?: ""), null, null)
+          completion(IaphubError(IaphubErrorCode.network_error, IaphubNetworkErrorCode.request_failed, err.message ?: "", silent=true), null, null)
         }
         // When the request succeed
         override fun onResponse(call: Call, response: Response) {
           response.use {
+            // Add status code to infos
+            infos["statusCode"] = "${response.code}"
             // Get json string
             val jsonString = response.body?.string()
             // Check that json string isn't empty
             if (jsonString == null) {
-              return completion(IaphubError(IaphubErrorCode.network_error, "no response (url: ${type} ${route}, status code: ${response.code})"), null, response)
+              return completion(IaphubError(IaphubErrorCode.network_error, IaphubNetworkErrorCode.response_empty, params=infos, silent=true), null, response)
             }
             // Parse json
             var jsonMap = Util.jsonStringToMap(jsonString)
             if (jsonMap == null) {
-              return completion(IaphubError(IaphubErrorCode.network_error, "response parsing failed (url: ${type} ${route}, status code: ${response.code})"), null, response)
+              return completion(IaphubError(IaphubErrorCode.network_error, IaphubNetworkErrorCode.response_parsing_failed, params=infos + mapOf("response" to jsonString), silent=true), null, response)
             }
             // Check if the response returned an error
             val error = jsonMap["error"] as? String
             if (error != null) {
-              return completion(IaphubError(error, "the IAPHUB server returned the error $error (url: ${type} ${route}, status code: ${response.code})"), null, response)
+              return completion(IaphubError(IaphubErrorCode.server_error, IaphubCustomError(error, "code: ${error}"), params=infos, silent=true), null, response)
             }
             // Otherwise the request is successful, return the data
             completion(null, jsonMap, response)
@@ -163,7 +172,7 @@ internal class Network {
       })
     }
     catch (err: Exception) {
-      completion(IaphubError(IaphubErrorCode.network_error, err.message ?: ""), null, null)
+      completion(IaphubError(IaphubErrorCode.network_error, IaphubNetworkErrorCode.unknown_exception, err.message ?: "", params=infos, silent=true), null, null)
     }
   }
 

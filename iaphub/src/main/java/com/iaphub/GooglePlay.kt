@@ -79,7 +79,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
       this.billing = null
     }
     catch(err: Exception) {
-      IaphubError(IaphubErrorCode.unexpected, "Google Play Billing end connection failed, ${err.message}")
+      IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.end_connection_failed, err.message ?: "")
     }
   }
 
@@ -95,7 +95,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
     // Get and check sku
     val sku = options["sku"]
     if (sku == null) {
-      return completion(IaphubError(IaphubErrorCode.unexpected, "Buy failed, product sku not specified"), null)
+      return completion(IaphubError(IaphubErrorCode.unexpected, null, "product sku not specified"), null)
     }
     // Save buy request
     this.buyRequest = BuyRequest(sku, options, completion)
@@ -138,7 +138,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
           subscriptionUpdateParamsBuilder.setReplaceSkusProrationMode(BillingFlowParams.ProrationMode.DEFERRED)
         } else if (prorationMode != null) {
           this.buyRequest = null
-          return@getSkuDetails completion(IaphubError(IaphubErrorCode.unexpected, "proration mode invalid"), null)
+          return@getSkuDetails completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.proration_mode_invalid, "value: ${prorationMode}"), null)
         }
         // Add subscription params to builder
         builder.setSubscriptionUpdateParams(subscriptionUpdateParamsBuilder.build())
@@ -225,7 +225,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
       }
       // Catch any exception
       catch (err: Exception) {
-        completion(IaphubError(IaphubErrorCode.unexpected, err.localizedMessage), null)
+        completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.product_details_parsing_failed, err.localizedMessage), null)
       }
     }
   }
@@ -313,7 +313,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
 
     // Check the billing has been started
     if (billing == null) {
-      return completion(IaphubError(IaphubErrorCode.unexpected, "Google Play billing not started"), null)
+      return completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.start_missing), null)
     }
     // Call completion is the billing is ready
     if (this.isBillingReady()) {
@@ -344,7 +344,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
             completion(null, billing)
           }
           else {
-            completion(IaphubError(IaphubErrorCode.billing_unavailable, "Google Play billing not ready, timeout triggered"), null)
+            completion(IaphubError(IaphubErrorCode.billing_unavailable, IaphubUnexpectedErrorCode.billing_ready_timeout), null)
           }
         }
       }
@@ -513,7 +513,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
       billing.consumeAsync(params) { billingResult, _ ->
         // Check error
         if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
-          return@consumeAsync completion(IaphubError(IaphubErrorCode.unexpected, "consuming transaction failed, ${billingResult.debugMessage}"))
+          return@consumeAsync completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.consume_failed, billingResult.debugMessage))
         }
         // Otherwise it is a success
         completion(null)
@@ -531,7 +531,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
     }
     // Check that it has a PURCHASED state
     if (purchase.purchaseState != 1) {
-      return completion(IaphubError(IaphubErrorCode.unexpected, "acknowledging transaction failed, purchase state invalid"))
+      return completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.acknowledge_failed, "purchase state invalid (value: ${purchase.purchaseState})"))
     }
     // Handle testing
     if (this.sdk.testing.storeLibraryMock == true) {
@@ -548,7 +548,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
       billing.acknowledgePurchase(params) acknowledge@ { billingResult ->
         // Check error
         if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
-          return@acknowledge completion(IaphubError(IaphubErrorCode.unexpected, "acknowledging transaction failed, ${billingResult.debugMessage}"))
+          return@acknowledge completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.acknowledge_failed, billingResult.debugMessage))
         }
         // Otherwise it is a success
         completion(null)
@@ -591,7 +591,8 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
   private fun getErrorFromBillingResult(billingResult: BillingResult): IaphubError {
     val responseCode = billingResult.responseCode
     var errorType = IaphubErrorCode.unexpected
-    var message = ""
+    var subErrorType: IaphubErrorProtocol? = null
+    var message: String? = null
 
     if (responseCode == BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED) {
       errorType = IaphubErrorCode.billing_unavailable
@@ -599,42 +600,39 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
     }
     else if (responseCode == BillingClient.BillingResponseCode.SERVICE_DISCONNECTED) {
       errorType = IaphubErrorCode.network_error
-      message = "google play service disconnected"
+      subErrorType = IaphubNetworkErrorCode.billing_request_failed
     }
     else if (responseCode == BillingClient.BillingResponseCode.SERVICE_TIMEOUT) {
       errorType = IaphubErrorCode.network_error
-      message = "google play service timeout"
+      subErrorType = IaphubNetworkErrorCode.billing_request_timeout
     }
     else if (responseCode == BillingClient.BillingResponseCode.USER_CANCELED) {
       errorType = IaphubErrorCode.user_cancelled
     }
     else if (responseCode == BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE) {
-      errorType = IaphubErrorCode.unexpected
-      message = "google play service unavailable"
-    }
-    else if (responseCode == BillingClient.BillingResponseCode.BILLING_UNAVAILABLE) {
-      errorType = IaphubErrorCode.unexpected
-      message = "google play billing unavailable"
+      errorType = IaphubErrorCode.billing_unavailable
     }
     else if (responseCode == BillingClient.BillingResponseCode.ITEM_UNAVAILABLE) {
       errorType = IaphubErrorCode.product_not_available
     }
     else if (responseCode == BillingClient.BillingResponseCode.DEVELOPER_ERROR) {
       errorType = IaphubErrorCode.unexpected
-      message = "invalid arguments provided to the google play billing API"
+      subErrorType = IaphubUnexpectedErrorCode.billing_developer_error
     }
     else if (responseCode == BillingClient.BillingResponseCode.ERROR) {
       errorType = IaphubErrorCode.unexpected
-      message = "fatal error during google play billing API action"
+      subErrorType = IaphubUnexpectedErrorCode.billing_error
     }
     else if (responseCode == BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED) {
       errorType = IaphubErrorCode.product_already_owned
     }
     else {
-      message = "google play billing error code ${responseCode}"
+      errorType = IaphubErrorCode.unexpected
+      subErrorType = IaphubUnexpectedErrorCode.billing_error
+      message = "(responseCode: ${responseCode})"
     }
 
-    return IaphubError(errorType, message)
+    return IaphubError(errorType, subErrorType, message)
   }
 
   /**
@@ -689,7 +687,8 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
           return@querySkuDetailsAsync completion(
             IaphubError(
               IaphubErrorCode.unexpected,
-              "get skus details failed, query failed (response code: ${billingResult.responseCode})"
+              IaphubUnexpectedErrorCode.get_sku_details_failed,
+              "code: ${billingResult.responseCode}"
             ), null
           )
         }

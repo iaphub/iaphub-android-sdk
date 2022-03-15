@@ -93,7 +93,7 @@ open class SDK: LifecycleObserver
     // Check the sdk is started
     val user = this.user
     if (user == null) {
-      return Util.dispatchToMain { completion(IaphubError(IaphubErrorCode.unexpected, "IAPHUB not started")) }
+      return Util.dispatchToMain { completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.start_missing, "login failed")) }
     }
     // Log in user
     user.login(userId) { err ->
@@ -132,7 +132,7 @@ open class SDK: LifecycleObserver
     // Check the sdk is started
     val user = this.user
     if (user == null) {
-      return Util.dispatchToMain { completion(IaphubError(IaphubErrorCode.unexpected, "IAPHUB not started")) }
+      return Util.dispatchToMain { completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.start_missing, "setUserTags failed")) }
     }
     // Set tags
     user.setTags(tags) { err ->
@@ -147,7 +147,7 @@ open class SDK: LifecycleObserver
     // Check the sdk is started
     val user = this.user
     if (user == null) {
-      return Util.dispatchToMain { completion(IaphubError(IaphubErrorCode.unexpected, "IAPHUB not started"), null) }
+      return Util.dispatchToMain { completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.start_missing, "buy failed"), null) }
     }
     // Check if anonymous purchases are allowed
     if (user.isAnonymous() && this.allowAnonymousPurchase == false) {
@@ -166,7 +166,7 @@ open class SDK: LifecycleObserver
     // Check the sdk is started
     val user = this.user
     if (user == null) {
-      return Util.dispatchToMain { completion(IaphubError(IaphubErrorCode.unexpected, "IAPHUB not started")) }
+      return Util.dispatchToMain { completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.start_missing, "restore failed")) }
     }
     // Launch restore
     user.restore() { err ->
@@ -181,7 +181,7 @@ open class SDK: LifecycleObserver
     // Check the sdk is started
     val user = this.user
     if (user == null) {
-      return Util.dispatchToMain { completion(IaphubError(IaphubErrorCode.unexpected, "IAPHUB not started"), null) }
+      return Util.dispatchToMain { completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.start_missing, "getProductsForSale failed"), null) }
     }
     // Return products for sale
     user.getProductsForSale() { err, products ->
@@ -196,7 +196,7 @@ open class SDK: LifecycleObserver
     // Check the sdk is started
     val user = this.user
     if (user == null) {
-      return Util.dispatchToMain { completion(IaphubError(IaphubErrorCode.unexpected, "IAPHUB not started"), null) }
+      return Util.dispatchToMain { completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.start_missing, "getActiveProducts failed"), null) }
     }
     // Return active products
     user.getActiveProducts(includeSubscriptionStates) { err, products ->
@@ -211,7 +211,7 @@ open class SDK: LifecycleObserver
     // Check the sdk is started
     val user = this.user
     if (user == null) {
-      return Util.dispatchToMain { completion(IaphubError(IaphubErrorCode.unexpected, "IAPHUB not started"), null, null) }
+      return Util.dispatchToMain { completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.start_missing, "getProducts failed"), null, null) }
     }
     // Return products
     user.getProducts(includeSubscriptionStates) { err, productsForSale, activeProducts ->
@@ -279,7 +279,7 @@ open class SDK: LifecycleObserver
         // Check the sdk is started
         val user = this.user
         if (user == null) {
-          return@start finish(IaphubError(IaphubErrorCode.unexpected, "IAPHUB not started"), false, null)
+          return@start finish(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.start_missing), false, null)
         }
         // When receiving a receipt, post it
         user.postReceipt(receipt) { err, receiptResponse ->
@@ -312,7 +312,7 @@ open class SDK: LifecycleObserver
               }
               // Check any other status different than success
               else if (receiptResponse.status != "success") {
-                error = IaphubError(IaphubErrorCode.unexpected, "Receipt validation failed")
+                error = IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.receipt_validation_response_invalid, "status: ${receiptResponse.status}")
                 shouldFinishReceipt = false
               }
               // Get transaction if we're in a purchase context
@@ -362,24 +362,24 @@ open class SDK: LifecycleObserver
         // Check the sdk is started
         val user = this.user
         if (user == null) {
-          return@start completion(IaphubError(IaphubErrorCode.unexpected, "IAPHUB not started"), null)
+          return@start completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.start_missing), null)
         }
         // Get subscription
         val subscription = user.activeProducts.find { item -> item.androidToken == purchaseToken }
         if (subscription == null) {
-          return@start completion(IaphubError(IaphubErrorCode.unexpected, "subscription to replace not found"), null)
+          return@start completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.subscription_replace_failed, "subscription to replace not found"), null)
         }
         // Create receipt transaction
         val data = subscription.getData() as? MutableMap<String, Any?>
         if (data == null) {
-          return@start completion(IaphubError(IaphubErrorCode.unexpected, "subscription to replace data cast failed"), null)
+          return@start completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.subscription_replace_failed,"subscription to replace data cast failed"), null)
         }
         data["subscriptionRenewalProduct"] = subscription.id
         data["subscriptionRenewalProductSku"] = newSku
         // Check purchase
         if (subscription.purchase == null) {
           // Trigger an error but do not return it
-          IaphubError(IaphubErrorCode.unexpected, "purchase of subscription to replace not found")
+          IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.subscription_replace_failed,"purchase of subscription to replace not found")
           // Complete transaction anyway
           return@start completion(null, ReceiptTransaction(data))
         }

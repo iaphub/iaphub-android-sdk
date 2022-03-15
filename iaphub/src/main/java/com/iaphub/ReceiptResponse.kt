@@ -12,10 +12,10 @@ internal class ReceiptResponse {
   constructor(data: Map<String, Any>) {
     this.status = data["status"] as? String
     this.newTransactions = Util.parseItems(data["newTransactions"]) { err, _ ->
-      IaphubError(IaphubErrorCode.unexpected, "error parsing new transaction of receipt response, transaction ignored, $err")
+      IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.receipt_transation_parsing_failed, "new transaction, err: $err")
     }
     this.oldTransactions = Util.parseItems(data["oldTransactions"]) { err, _ ->
-      IaphubError(IaphubErrorCode.unexpected, "error parsing old transaction of receipt response, transaction ignored, $err")
+      IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.receipt_transation_parsing_failed, "old transaction, err: $err")
     }
   }
 

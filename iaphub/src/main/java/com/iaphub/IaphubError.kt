@@ -3,29 +3,34 @@ package com.iaphub
 class IaphubError {
 
   val code: String
+  val subcode: String?
   val message: String
   val params: Map<String, Any>
+  var sent: Boolean = false
 
-  internal constructor(code: IaphubErrorCode, message: String = "", params: Map<String, Any> = emptyMap(), listener: Boolean = true) {
-    this.code = code.name
-    if (message != "") {
-      this.message = code.message + ", " + message
-    }
-    else {
-      this.message = code.message
-    }
+  internal constructor(error: IaphubErrorCode, suberror: IaphubErrorProtocol? = null, message: String? = null, params: Map<String, Any> = emptyMap(), silent: Boolean = false) {
+    var fullMessage = error.message
+
+    this.code = error.name
+    this.subcode = suberror?.name
     this.params = params
-    if (listener != false) {
-      this.triggerListener()
-      this.sendLog()
+    if (suberror != null) {
+      fullMessage = "$fullMessage, ${suberror.message}"
+    }
+    if (message != null && message != "") {
+      fullMessage = "$fullMessage, $message"
+    }
+    this.message = fullMessage
+    if (!silent) {
+      this.send()
     }
   }
 
-  constructor(code: String, message: String = "", params: Map<String, Any> = emptyMap(), listener: Boolean = true) {
-    this.code = code
-    this.message = message
-    this.params = params
-    if (listener != false) {
+  /**
+   * Send
+   */
+  fun send() {
+    if (this.sent == false) {
       this.triggerListener()
       this.sendLog()
     }
@@ -57,9 +62,16 @@ class IaphubError {
         "environment" to Iaphub.environment,
         "platform" to Config.sdk,
         "framework" to Iaphub.sdk,
-        "code_version" to Iaphub.sdkVersion,
-        "custom" to this.params,
-        "person" to mapOf("id" to Iaphub.appId)
+        "code_version" to Config.sdkVersion,
+        "custom" to this.params + mapOf(
+          "osVersion" to Iaphub.osVersion,
+          "sdkVersion" to Iaphub.sdkVersion,
+          "code" to this.code,
+          "subcode" to this.subcode
+        ),
+        "person" to mapOf("id" to Iaphub.appId),
+        "context" to "${Iaphub.appId}/${Iaphub.user?.id ?: ""}",
+        "fingerprint" to "${Config.sdk}_${this.code}_${this.subcode ?: ""}"
       )
     )) { _, _ ->
       // No need to do anything if there is an error
