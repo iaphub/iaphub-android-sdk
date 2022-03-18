@@ -95,9 +95,14 @@ internal object Util {
   /*
    * Parse items
    */
-  inline fun <reified T: Parsable>parseItems(data: Any?, failure: (Exception, Map<String, Any>) -> Unit): List<T> {
-    val arr: List<Map<String, Any>> = (data as? List<Map<String, Any>>) ?: listOf()
+  inline fun <reified T: Parsable>parseItems(data: Any?, failure: (Exception, Map<String, Any>?) -> Unit): List<T> {
+    val arr: List<Map<String, Any>>? = (data as? List<Map<String, Any>>)
     val items: MutableList<T> = mutableListOf()
+
+    if (arr == null) {
+      failure(Exception("cast to array failed"), null)
+      return items
+    }
 
     arr.forEach { elem ->
       try {

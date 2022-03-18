@@ -5,10 +5,10 @@ class IaphubError {
   val code: String
   val subcode: String?
   val message: String
-  val params: Map<String, Any>
+  val params: Map<String, Any?>
   var sent: Boolean = false
 
-  internal constructor(error: IaphubErrorCode, suberror: IaphubErrorProtocol? = null, message: String? = null, params: Map<String, Any> = emptyMap(), silent: Boolean = false) {
+  internal constructor(error: IaphubErrorCode, suberror: IaphubErrorProtocol? = null, message: String? = null, params: Map<String, Any?> = emptyMap(), silent: Boolean = false) {
     var fullMessage = error.message
 
     this.code = error.name
