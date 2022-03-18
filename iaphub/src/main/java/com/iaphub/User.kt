@@ -574,8 +574,20 @@ internal class User {
     Util.dispatch {
       val prefix = if (this.isAnonymous()) "iaphub_user_a" else "iaphub_user"
       val jsonString = Util.getFromCache(context = this.sdk.context, key = "${prefix}_${this.sdk.appId}")
-      val jsonMap = if (jsonString != null) Util.jsonStringToMap(jsonString) else null
+      var jsonMap: Map<String, Any>? = null
 
+      // Parse JSON string
+      if (jsonString != null) {
+        jsonMap = Util.jsonStringToMap(jsonString)
+        if (jsonMap == null) {
+          IaphubError(
+            IaphubErrorCode.unexpected,
+            IaphubUnexpectedErrorCode.get_cache_data_json_parsing_failed,
+            params=mapOf("jsonString" to jsonString)
+          )
+        }
+      }
+      // Use cache data if it comes from the same user id
       if (jsonMap != null && (jsonMap["id"] as? String == this.id)) {
         this.fetchDate = Util.dateFromIsoString(jsonMap["fetchDate"]) { exception ->
           IaphubError(
