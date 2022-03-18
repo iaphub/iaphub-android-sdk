@@ -53,6 +53,10 @@ class IaphubError {
     if (Iaphub.testing.logs == false) {
       return
     }
+    // Check rate limit
+    if (!IaphubLogLimit.isAllowed()) {
+      return
+    }
     // Send request
     Iaphub.user?.api?.postLog(mapOf(
       "data" to mapOf(
