@@ -60,9 +60,6 @@ internal object Util {
       if (failure != null) {
         failure(exception)
       }
-      else {
-        IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.date_parsing_failed, "$exception", mapOf("str" to str))
-      }
     }
 
     return date

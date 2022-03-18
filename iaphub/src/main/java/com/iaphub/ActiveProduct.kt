@@ -25,9 +25,23 @@ open class ActiveProduct : Product {
 
   constructor(data: Map<String, Any?>): super(data) {
     this.purchase = data["purchase"] as? String
-    this.purchaseDate = Util.dateFromIsoString(data["purchaseDate"])
+    this.purchaseDate = Util.dateFromIsoString(data["purchaseDate"]) { exception ->
+      IaphubError(
+        IaphubErrorCode.unexpected,
+        IaphubUnexpectedErrorCode.date_parsing_failed,
+        message="issue on active product purchase date, $exception",
+        params=mapOf("purchaseDate" to data["purchaseDate"], "purchase" to this.purchase)
+      )
+    }
     this.platform = data["platform"] as? String
-    this.expirationDate = Util.dateFromIsoString(data["expirationDate"])
+    this.expirationDate = Util.dateFromIsoString(data["expirationDate"]) { exception ->
+      IaphubError(
+        IaphubErrorCode.unexpected,
+        IaphubUnexpectedErrorCode.date_parsing_failed,
+        message="issue on active product expiration date, $exception",
+        params=mapOf("expirationDate" to data["expirationDate"], "purchase" to this.purchase)
+      )
+    }
     this.isSubscriptionRenewable = (data["isSubscriptionRenewable"] as? Boolean) ?: false
     this.subscriptionRenewalProduct = data["subscriptionRenewalProduct"] as? String
     this.subscriptionRenewalProductSku = data["subscriptionRenewalProductSku"] as? String
