@@ -50,7 +50,8 @@ internal enum class IaphubUnexpectedErrorCode(override val message: String): Iap
   billing_error("fatal error during google play billing API action"),
   proration_mode_invalid("proration mode invalid"),
   subscription_replace_failed("subscription replace failed"),
-  compare_products_failed("compare products failed")
+  compare_products_failed("compare products failed"),
+  date_parsing_failed("the parsing of a date failed")
 }
 
 internal enum class IaphubNetworkErrorCode(override val message: String): IaphubErrorProtocol {

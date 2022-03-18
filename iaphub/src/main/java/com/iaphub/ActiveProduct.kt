@@ -25,9 +25,9 @@ open class ActiveProduct : Product {
 
   constructor(data: Map<String, Any?>): super(data) {
     this.purchase = data["purchase"] as? String
-    this.purchaseDate = Util.dateFromIsoString(data["purchaseDate"] as? String)
+    this.purchaseDate = Util.dateFromIsoString(data["purchaseDate"])
     this.platform = data["platform"] as? String
-    this.expirationDate = Util.dateFromIsoString(data["expirationDate"] as? String)
+    this.expirationDate = Util.dateFromIsoString(data["expirationDate"])
     this.isSubscriptionRenewable = (data["isSubscriptionRenewable"] as? Boolean) ?: false
     this.subscriptionRenewalProduct = data["subscriptionRenewalProduct"] as? String
     this.subscriptionRenewalProductSku = data["subscriptionRenewalProductSku"] as? String

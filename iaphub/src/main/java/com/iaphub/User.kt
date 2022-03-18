@@ -577,12 +577,19 @@ internal class User {
       val jsonMap = if (jsonString != null) Util.jsonStringToMap(jsonString) else null
 
       if (jsonMap != null && (jsonMap["id"] as? String == this.id)) {
-        this.fetchDate = Util.dateFromIsoString(jsonMap["fetchDate"] as? String)
+        this.fetchDate = Util.dateFromIsoString(jsonMap["fetchDate"]) { exception ->
+          IaphubError(
+            IaphubErrorCode.unexpected,
+            IaphubUnexpectedErrorCode.get_cache_data_item_parsing_failed,
+            message="issue on fetch date, $exception",
+            params=mapOf("fetchDate" to jsonMap["fetchDate"])
+          )
+        }
         this.productsForSale = Util.parseItems<Product>(jsonMap["productsForSale"]) { err, item ->
           IaphubError(
             IaphubErrorCode.unexpected,
             IaphubUnexpectedErrorCode.get_cache_data_item_parsing_failed,
-            message="issue on product for sale, ${err}",
+            message="issue on product for sale, $err",
             params=mapOf("item" to item)
           )
         }
@@ -590,7 +597,7 @@ internal class User {
           IaphubError(
             IaphubErrorCode.unexpected,
             IaphubUnexpectedErrorCode.get_cache_data_item_parsing_failed,
-            message="issue on active product, ${err}",
+            message="issue on active product, $err",
             params=mapOf("item" to item)
           )
         }
@@ -598,7 +605,7 @@ internal class User {
           IaphubError(
             IaphubErrorCode.unexpected,
             IaphubUnexpectedErrorCode.get_cache_data_item_parsing_failed,
-            message="issue on pricing, ${err}",
+            message="issue on pricing, $err",
             params=mapOf("item" to item)
           )
         }
