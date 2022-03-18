@@ -577,7 +577,7 @@ internal class User {
       val jsonMap = if (jsonString != null) Util.jsonStringToMap(jsonString) else null
 
       if (jsonMap != null && (jsonMap["id"] as? String == this.id)) {
-        this.fetchDate = Util.dateFromIsoString(jsonMap["id"] as? String)
+        this.fetchDate = Util.dateFromIsoString(jsonMap["fetchDate"] as? String)
         this.productsForSale = Util.parseItems<Product>(jsonMap["productsForSale"]) { err, item ->
           IaphubError(
             IaphubErrorCode.unexpected,
