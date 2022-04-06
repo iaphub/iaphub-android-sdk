@@ -53,6 +53,10 @@ class IaphubError {
     if (Iaphub.testing.logs == false) {
       return
     }
+    // Ignore some errors
+    if (listOf("user_cancelled").contains(this.code)) {
+      return
+    }
     // Check rate limit
     if (!IaphubLogLimit.isAllowed()) {
       return
