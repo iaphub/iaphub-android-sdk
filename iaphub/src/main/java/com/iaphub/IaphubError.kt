@@ -86,4 +86,13 @@ class IaphubError {
     }
   }
 
+  fun getData(): Map<String, Any?> {
+    return mapOf(
+      "code" to this.code,
+      "subcode" to this.subcode,
+      "message" to this.message,
+      "params" to this.params
+    )
+  }
+
 }
