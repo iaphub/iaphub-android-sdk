@@ -334,19 +334,20 @@ open class SDK: LifecycleObserver
                   if ((oldTransaction?.type == "non_consumable") || (oldTransaction?.subscriptionState != null && oldTransaction?.subscriptionState != "expired")) {
                     // Check if the transaction belongs to a different user
                     if (oldTransaction.user != null && user.iaphubId != null && oldTransaction.user != user.iaphubId) {
-                      error = IaphubError(IaphubErrorCode.user_conflict)
+                      error = IaphubError(IaphubErrorCode.user_conflict, params=mapOf("loggedUser" to user.iaphubId, "transactionUser" to oldTransaction.user))
                     } else {
-                      error = IaphubError(IaphubErrorCode.product_already_purchased)
+                      error = IaphubError(IaphubErrorCode.product_already_purchased, params=mapOf("sku" to receipt.sku))
                     }
                   }
                   // Otherwise it means the product sku wasn't in the receipt
                   else {
-                    error = IaphubError(IaphubErrorCode.transaction_not_found)
+                    
+                    error = IaphubError(IaphubErrorCode.transaction_not_found, params=mapOf("sku" to receipt.sku))
                   }
                 }
                 // If we have a transaction check that it belongs to the same user
                 else if (transaction?.user != null && user.iaphubId != null && transaction?.user != user.iaphubId) {
-                  error = IaphubError(IaphubErrorCode.user_conflict)
+                  error = IaphubError(IaphubErrorCode.user_conflict, params=mapOf("loggedUser" to user.iaphubId, "transactionUser" to transaction?.user))
                 }
               }
               // Call finish
