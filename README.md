@@ -226,10 +226,6 @@ Call the ``buy`` method to buy a product<br/><br/>
       else if (err.code == "billing_unavailable") {
         message = "In-app purchase not allowed"
       }
-      // The product has already been bought but it's owned by a different user, restore needed to transfer it to this user
-      else if (err.code == "product_owned_different_user") {
-        message = "You already purchased this product but it is currently used by a different account, restore your purchases to transfer it to this account"
-      }
       // The payment has been deferred (awaiting approval from parental control)
       else if (err.code == "deferred_payment") {
         message = "Your purchase is awaiting approval from the parental control"
