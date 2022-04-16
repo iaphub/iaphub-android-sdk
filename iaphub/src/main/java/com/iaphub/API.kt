@@ -26,6 +26,12 @@ internal class API {
   fun getUser(completion: (IaphubError?, Map<String, Any>?) -> Unit) {
     var params: MutableMap<String, Any> = mutableMapOf()
 
+    // Add updateDate
+    val updateDate = this.user.updateDate
+    if (updateDate != null) {
+      params.put("updateDate", "${updateDate.getTime()}")
+    }
+    // Add device params
     for ((key, value) in this.user.sdk.deviceParams) {
       params.put("params.${key}", value)
     }

@@ -18,6 +18,7 @@ internal class User {
   internal var pricings: List<ProductPricing> = listOf()
   internal var fetchDate: Date? = null
   internal var receiptPostDate: Date? = null
+  internal var updateDate: Date? = null
   internal var fetchRequests: MutableList<(IaphubError?, Boolean) -> Unit> = mutableListOf()
   internal var isFetching: Boolean = false
   internal var isInitialized: Boolean = false
@@ -90,6 +91,8 @@ internal class User {
   fun restore(completion: (IaphubError?) -> Unit) {
     // Launch restore
     this.sdk.store?.restore() { err ->
+      // Update updateDate
+      this.updateDate = Date()
       // Refresh user
       this.refresh(interval = 0, force = true) { _, _, _ ->
         completion(err)
@@ -267,6 +270,8 @@ internal class User {
       if (err != null) {
         return@postTags completion(err)
       }
+      // Update updateDate
+      this.updateDate = Date()
       // Reset cache
       this.resetCache()
       // Call completion
@@ -334,6 +339,8 @@ internal class User {
       if (err != null || data == null) {
         return@postReceipt completion(err ?: IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.post_receipt_data_missing), null)
       }
+      // Update updateDate
+      this.updateDate = Date()
       // Update receipt post date
       this.receiptPostDate = Date()
       // Parse and return receipt response
@@ -516,6 +523,7 @@ internal class User {
     this.pricings = listOf()
     this.fetchDate = null
     this.receiptPostDate = null
+    this.updateDate = null
     this.needsFetch = false
     this.isInitialized = false
   }
