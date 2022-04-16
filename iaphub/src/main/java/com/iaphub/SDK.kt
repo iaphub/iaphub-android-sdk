@@ -341,7 +341,6 @@ open class SDK: LifecycleObserver
                   }
                   // Otherwise it means the product sku wasn't in the receipt
                   else {
-                    
                     error = IaphubError(IaphubErrorCode.transaction_not_found, params=mapOf("sku" to receipt.sku))
                   }
                 }
