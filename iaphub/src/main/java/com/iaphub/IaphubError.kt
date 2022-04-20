@@ -30,10 +30,17 @@ class IaphubError {
    * Send
    */
   fun send() {
-    if (this.sent == false) {
-      this.triggerListener()
-      this.sendLog()
+    // Ignore some server errors (they are not real errors)
+    if (this.code == "server_error" && listOf("user_not_found", "user_authenticated").contains(this.subcode)) {
+      return
     }
+    // Ignore if already sent
+    if (this.sent) {
+      return
+    }
+    // Trigger listener and send log
+    this.triggerListener()
+    this.sendLog()
   }
 
   /**
@@ -53,7 +60,7 @@ class IaphubError {
     if (Iaphub.testing.logs == false) {
       return
     }
-    // Ignore some errors
+    // Ignore some errors when sending a log isn't necessary
     if (listOf("user_cancelled").contains(this.code)) {
       return
     }
