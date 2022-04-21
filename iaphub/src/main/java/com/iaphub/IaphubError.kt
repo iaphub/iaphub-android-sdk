@@ -39,6 +39,7 @@ class IaphubError {
       return
     }
     // Trigger listener and send log
+    this.sent = true
     this.triggerListener()
     this.sendLog()
   }
