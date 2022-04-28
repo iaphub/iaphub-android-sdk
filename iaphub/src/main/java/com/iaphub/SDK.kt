@@ -60,6 +60,10 @@ open class SDK: LifecycleObserver
     if (this.user == null || (oldAppId != appId) || (userId != null && this.user?.id != userId)) {
       this.user = User(id=userId, sdk=this, onUserUpdate={ this.onUserUpdate() })
     }
+    // Otherwise reset user cache
+    else {
+      this.user?.resetCache()
+    }
     // If it isn't been started yet
     if (this.isStarted == false) {
       // Add lifecycle observer
