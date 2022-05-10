@@ -112,6 +112,7 @@ internal class API {
       type="POST",
       route="/app/${this.user.sdk.appId}/log",
       timeout=2,
+      retry=0,
       params=params,
       completion=completion
     )
