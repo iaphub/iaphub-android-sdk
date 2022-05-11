@@ -46,7 +46,6 @@ internal enum class IaphubUnexpectedErrorCode(override val message: String): Iap
   billing_ready_timeout("Google Play billing not ready, timeout triggered"),
   consume_failed("consume transaction failed"),
   acknowledge_failed("acknowledge transaction failed"),
-  get_sku_details_failed("get skus details failed"),
   billing_developer_error("the google play billing library isn't used properly"),
   billing_error("fatal error during google play billing API action"),
   proration_mode_invalid("proration mode invalid"),

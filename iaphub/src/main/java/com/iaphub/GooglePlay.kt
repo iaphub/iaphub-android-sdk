@@ -277,7 +277,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
   override fun onPurchasesUpdated(billingResult: BillingResult, purchases: List<Purchase>?) {
     // Handle error
     if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
-      this.processBuyRequest(null, this.getErrorFromBillingResult(billingResult), null)
+      this.processBuyRequest(null, this.getErrorFromBillingResult(billingResult, "onPurchasesUpdated"), null)
       return
     }
     // Handle deferred subscription replace
@@ -476,7 +476,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
         val billingResult = billing.launchBillingFlow(activity, params)
         // Check for errors
         if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
-          completion(this.getErrorFromBillingResult(billingResult))
+          completion(this.getErrorFromBillingResult(billingResult, "launchBillingFlow"))
         }
       }
     }
@@ -513,7 +513,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
       billing.consumeAsync(params) { billingResult, _ ->
         // Check error
         if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
-          return@consumeAsync completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.consume_failed, billingResult.debugMessage))
+          return@consumeAsync completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.consume_failed, billingResult.debugMessage, mapOf("code" to billingResult.responseCode)))
         }
         // Otherwise it is a success
         completion(null)
@@ -548,7 +548,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
       billing.acknowledgePurchase(params) acknowledge@ { billingResult ->
         // Check error
         if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
-          return@acknowledge completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.acknowledge_failed, billingResult.debugMessage))
+          return@acknowledge completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.acknowledge_failed, billingResult.debugMessage, mapOf("code" to billingResult.responseCode)))
         }
         // Otherwise it is a success
         completion(null)
@@ -588,11 +588,12 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
   /**
    * Get error from billing result
    */
-  private fun getErrorFromBillingResult(billingResult: BillingResult): IaphubError {
+  private fun getErrorFromBillingResult(billingResult: BillingResult, method: String): IaphubError {
     val responseCode = billingResult.responseCode
     var errorType = IaphubErrorCode.unexpected
     var subErrorType: IaphubErrorProtocol? = null
     var message: String? = null
+    var params = mapOf("method" to method, "code" to responseCode, "message" to billingResult.debugMessage)
 
     if (responseCode == BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED) {
       errorType = IaphubErrorCode.billing_unavailable
@@ -610,7 +611,8 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
       errorType = IaphubErrorCode.user_cancelled
     }
     else if (responseCode == BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE) {
-      errorType = IaphubErrorCode.billing_unavailable
+      errorType = IaphubErrorCode.network_error
+      subErrorType = IaphubNetworkErrorCode.billing_request_failed
     }
     else if (responseCode == BillingClient.BillingResponseCode.ITEM_UNAVAILABLE) {
       errorType = IaphubErrorCode.product_not_available
@@ -632,7 +634,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
       message = "(responseCode: ${responseCode})"
     }
 
-    return IaphubError(errorType, subErrorType, message)
+    return IaphubError(error=errorType, suberror=subErrorType, message=message, params=params, fingerprint=method)
   }
 
   /**
@@ -685,11 +687,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
           }
           // Otherwise return an error
           return@querySkuDetailsAsync completion(
-            IaphubError(
-              IaphubErrorCode.unexpected,
-              IaphubUnexpectedErrorCode.get_sku_details_failed,
-              "code: ${billingResult.responseCode}"
-            ), null
+            this.getErrorFromBillingResult(billingResult, "querySkuDetailsAsync"), null
           )
         }
         // Cache skus details

@@ -6,14 +6,16 @@ class IaphubError {
   val subcode: String?
   val message: String
   val params: Map<String, Any?>
+  val fingerprint: String
   var sent: Boolean = false
 
-  internal constructor(error: IaphubErrorCode, suberror: IaphubErrorProtocol? = null, message: String? = null, params: Map<String, Any?> = emptyMap(), silent: Boolean = false) {
+  internal constructor(error: IaphubErrorCode, suberror: IaphubErrorProtocol? = null, message: String? = null, params: Map<String, Any?> = emptyMap(), silent: Boolean = false, fingerprint: String = "") {
     var fullMessage = error.message
 
     this.code = error.name
     this.subcode = suberror?.name
     this.params = params
+    this.fingerprint = fingerprint
     if (suberror != null) {
       fullMessage = "$fullMessage, ${suberror.message}"
     }
@@ -69,6 +71,11 @@ class IaphubError {
     if (!IaphubLogLimit.isAllowed()) {
       return
     }
+    // Build fingerprint
+    var fullFingerprint = "${Config.sdk}_${this.code}_${this.subcode ?: ""}"
+    if (this.fingerprint != "") {
+      fullFingerprint = "${fullFingerprint}_${this.fingerprint}"
+    }
     // Send request
     Iaphub.user?.api?.postLog(mapOf(
       "data" to mapOf(
@@ -87,7 +94,7 @@ class IaphubError {
         ),
         "person" to mapOf("id" to Iaphub.appId),
         "context" to "${Iaphub.appId}/${Iaphub.user?.id ?: ""}",
-        "fingerprint" to "${Config.sdk}_${this.code}_${this.subcode ?: ""}"
+        "fingerprint" to fullFingerprint
       )
     )) { _, _ ->
       // No need to do anything if there is an error
