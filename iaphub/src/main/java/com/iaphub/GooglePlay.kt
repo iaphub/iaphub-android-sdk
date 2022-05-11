@@ -616,7 +616,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
     var errorType = IaphubErrorCode.unexpected
     var subErrorType: IaphubErrorProtocol? = null
     var message: String? = null
-    var params = mapOf("method" to method, "code" to responseCode, "message" to billingResult.debugMessage)
+    var params = mapOf("method" to method, "responseCode" to responseCode, "message" to billingResult.debugMessage)
 
     if (responseCode == BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED) {
       errorType = IaphubErrorCode.billing_unavailable
