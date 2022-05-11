@@ -31,13 +31,15 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textSize="18dp"
-                    android:textStyle="bold" />
+                    android:textStyle="bold"
+                    android:textColor="@color/black"/>
                 <TextView
                     android:id="@+id/productDescription"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="5dp"
-                    android:textSize="13dp" />
+                    android:textSize="13dp"
+                    android:textColor="@color/black"/>
 
             </LinearLayout>
         </androidx.cardview.widget.CardView>
