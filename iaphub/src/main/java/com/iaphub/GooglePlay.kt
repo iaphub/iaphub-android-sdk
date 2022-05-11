@@ -124,7 +124,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
           subscriptionUpdateParamsBuilder.setReplaceSkusProrationMode(BillingFlowParams.ProrationMode.DEFERRED)
         } else if (prorationMode != null) {
           this.buyRequest = null
-          return@getSkuDetails completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.proration_mode_invalid, "value: ${prorationMode}"), null)
+          return@getSkuDetails completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.proration_mode_invalid, "value: ${prorationMode}", mapOf("prorationMode" to prorationMode)), null)
         }
         // Add subscription params to builder
         builder.setSubscriptionUpdateParams(subscriptionUpdateParamsBuilder.build())
@@ -225,7 +225,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
       val product = this.sdk.testing.mockedProductDetails?.find { product -> product.sku == sku }
 
       if (product == null) {
-        return completion(IaphubError(IaphubErrorCode.product_not_available), null)
+        return completion(IaphubError(error=IaphubErrorCode.product_not_available, params=mapOf("sku" to sku)), null)
       }
       return completion(null, product)
     }
@@ -238,7 +238,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
       // Search for product
       val productDetails = productsDetails.find { product -> product.sku == sku }
       if (productDetails == null) {
-        return@getProductsDetails completion(IaphubError(IaphubErrorCode.product_not_available), null)
+        return@getProductsDetails completion(IaphubError(error=IaphubErrorCode.product_not_available, params=mapOf("sku" to sku)), null)
       }
       // Return product
       completion(null, productDetails)
@@ -741,7 +741,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
       // Search for product
       val skuDetails = skusDetails.find { product -> product.sku == sku }
       if (skuDetails == null) {
-        return@getSkusDetails completion(IaphubError(IaphubErrorCode.product_not_available), null)
+        return@getSkusDetails completion(IaphubError(error=IaphubErrorCode.product_not_available, params=mapOf("sku" to sku)), null)
       }
       // Return product
       completion(null, skuDetails)

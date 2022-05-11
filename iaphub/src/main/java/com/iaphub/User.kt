@@ -249,7 +249,7 @@ internal class User {
     }
     // Otherwise return error
     else {
-      completion(IaphubError(IaphubErrorCode.product_not_available), null)
+      completion(IaphubError(error=IaphubErrorCode.product_not_available, params=mapOf("sku" to sku)), null)
     }
   }
 
@@ -286,7 +286,7 @@ internal class User {
   fun login(userId: String, completion: (IaphubError?) -> Unit) {
     // Check that id is valid
     if (!this.isValidId(userId)) {
-      return completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.user_id_invalid, "login failed, id: ${userId}"))
+      return completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.user_id_invalid, "login failed, id: ${userId}", mapOf("userId" to userId)))
     }
     // Check that the id isn't the same
     if (this.id == userId) {
@@ -373,7 +373,7 @@ internal class User {
 
     // Check if the user id is valid
     if (!this.isAnonymous() && !this.isValidId(this.id)) {
-      return completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.user_id_invalid, "fetch failed, id: ${this.id}"), isUpdated)
+      return completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.user_id_invalid, "fetch failed, id: ${this.id}", mapOf("userId" to this.id)), isUpdated)
     }
     // Add completion to the requests
     this.fetchRequests.add(completion)
@@ -499,7 +499,7 @@ internal class User {
       // Filter products for sale with no details
       this.productsForSale = productsForSale.filter { product ->
         if (product.details == null) {
-          IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.product_missing_from_store, "sku: ${product.sku}")
+          IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.product_missing_from_store, "sku: ${product.sku}", mapOf("sku" to product.sku))
         }
         return@filter product.details != null
       }
