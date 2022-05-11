@@ -2,7 +2,6 @@ package com.iaphub
 
 import android.app.Activity
 import android.content.Context
-import android.util.Log
 import com.android.billingclient.api.*
 import java.lang.Exception
 import java.util.*
@@ -49,21 +48,8 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
       this.processPurchase(item.data, item.date, completion)
     }
     // Start connection
-    val self = this
     this.billing = BillingClient.newBuilder(context).enablePendingPurchases().setListener(this).build()
-    this.billing?.startConnection(
-      object : BillingClientStateListener {
-        // Called to notify that setup is complete.
-        override fun onBillingSetupFinished(billingResult: BillingResult) {
-          self.notifyBillingReady()
-        }
-        // Called to notify that the connection to the billing service was lost.
-        // This does not remove the billing service connection itself - this binding to the service will remain active, and will trigger onBillingSetupFinished when the billing service is next running
-        override fun onBillingServiceDisconnected() {
-
-        }
-      }
-    )
+    this.startConnection()
   }
 
   /**
@@ -294,6 +280,31 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
   /************************************ Private ************************************/
 
   /**
+   * Start billing connection
+   */
+  private fun startConnection() {
+    val self = this
+
+    this.billing?.startConnection(
+      object : BillingClientStateListener {
+        // Called to notify that setup is complete.
+        override fun onBillingSetupFinished(billingResult: BillingResult) {
+          // Prevent notifying the store as ready if testing says otherwise
+          if (self.sdk.testing.storeReady == false) {
+            return
+          }
+          self.notifyBillingReady()
+        }
+        // Called to notify that the connection to the billing service was lost.
+        // This does not remove the billing service connection itself - this binding to the service will remain active, and will trigger onBillingSetupFinished when the billing service is next running
+        override fun onBillingServiceDisconnected() {
+
+        }
+      }
+    )
+  }
+
+  /**
    * Check if the billing is ready
    */
   private fun isBillingReady(): Boolean {
@@ -308,6 +319,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
   /**
    * Call the completion when the billing is ready
    */
+  @Synchronized
   private fun whenBillingReady(completion: (IaphubError?, BillingClient?) -> Unit) {
     val billing = this.billing
 
@@ -319,32 +331,43 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
     if (this.isBillingReady()) {
       return completion(null, billing)
     }
-    // Create timer
-    val timer = Timer()
     // Create onReady callback
+    var onReadyCalled = false
+    var onReadyTimer: Timer? = null
     val onReady = {
-      if (this.isBillingReady()) {
-        timer.cancel()
+      if (!onReadyCalled) {
+        onReadyCalled = true
+        val timer = onReadyTimer
+        timer?.cancel()
         completion(null, billing)
       }
     }
     // Add onReady callback
-    synchronized(this) {
-      this.onReady.add(onReady)
+    this.onReady.add(onReady)
+    // Force connection
+    this.startConnection()
+    // If the onReady callback has been called, no need to go further
+    if (onReadyCalled) {
+      return
     }
-    // Return timeout error if the billing isn't ready in the next 10 seconds
+    // Otherwise create timer to check if the billing isn't ready in the next 10 seconds
     val self = this
     val timeout = this.sdk.testing.storeReadyTimeout ?: 10000
-    timer.schedule(timerTask {
+    onReadyTimer = Timer()
+    onReadyTimer.schedule(timerTask {
       synchronized(this) {
         val isRemoved = self.onReady.remove(onReady)
 
         if (isRemoved) {
           if (self.isBillingReady()) {
             completion(null, billing)
-          }
-          else {
-            completion(IaphubError(IaphubErrorCode.billing_unavailable, IaphubUnexpectedErrorCode.billing_ready_timeout), null)
+          } else {
+            completion(
+              IaphubError(
+                IaphubErrorCode.billing_unavailable,
+                IaphubUnexpectedErrorCode.billing_ready_timeout
+              ), null
+            )
           }
         }
       }
