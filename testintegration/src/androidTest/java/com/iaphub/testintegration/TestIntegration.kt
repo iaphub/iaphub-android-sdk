@@ -363,7 +363,6 @@ class TestIntegration {
 
     @Test
     fun test10_deleteTags() {
-        Log.d("IAPHUB", "-> test10_deleteTags")
         val waiter = Waiter()
         // Set tags
         Iaphub.setUserTags(mapOf("group" to "")) { err ->
@@ -377,7 +376,6 @@ class TestIntegration {
 
     @Test
     fun test11_setDeviceParams() {
-        Log.d("IAPHUB", "-> test11_setDeviceParams")
         val waiter = Waiter()
         // Set tags
         Iaphub.setDeviceParams(mapOf("appVersion" to "2.0.0"))

@@ -7,11 +7,12 @@ import java.lang.Exception
 import java.util.*
 import kotlin.concurrent.timerTask
 
-internal class GooglePlay: Store, PurchasesUpdatedListener {
+internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateListener {
 
   private var sdk: SDK
   private var onReceipt: ((Receipt, (IaphubError?, Boolean, ReceiptTransaction?) -> Unit) -> Unit)? = null
-  private var onReady: MutableList<() -> Unit> = mutableListOf()
+  private var onBillingReady: MutableList<(IaphubError?, BillingClient?) -> Unit> = mutableListOf()
+  private var onBillingReadyTimer: Timer? = null
   private var onDeferredSubscriptionReplace: ((purchaseToken: String, newSku: String, (IaphubError?, ReceiptTransaction?) -> Unit) -> Unit)? = null
   private var billing: BillingClient? = null
   private var buyRequest: BuyRequest? = null
@@ -19,6 +20,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
   private var lastReceipt: Receipt? = null
   private var cachedSkusDetails: MutableMap<String, SkuDetails> = mutableMapOf()
   private var isRestoring: Boolean = false
+  private var isStartingConnection: Boolean = false
 
   /**
    * Constructor
@@ -47,9 +49,8 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
     this.purchaseQueue = Queue() { item, completion ->
       this.processPurchase(item.data, item.date, completion)
     }
-    // Start connection
+    // Create billing instance
     this.billing = BillingClient.newBuilder(context).enablePendingPurchases().setListener(this).build()
-    this.startConnection()
   }
 
   /**
@@ -246,13 +247,52 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
   }
 
   /**
-   * Notify the billing is ready
+   * Get product details
    */
-  override fun notifyBillingReady() {
-    synchronized(this) {
-      this.onReady.forEach { callback -> callback() }
-      this.onReady = mutableListOf()
+  @Synchronized
+  override fun notifyBillingReady(error: IaphubError?) {
+    var billing = this.billing
+    var err = error
+
+    // Check the billing has been started
+    if (billing == null) {
+      err = IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.start_missing)
     }
+    // Cancel timer
+    this.onBillingReadyTimer?.cancel()
+    // Execute completions
+    this.onBillingReady.forEach { completion -> completion(err, billing) }
+    this.onBillingReady = mutableListOf()
+    // Unmark connection as starting
+    this.isStartingConnection = false
+  }
+
+  /************************************ BillingClientStateListener **********************************/
+
+  /**
+   * Called to notify that setup is complete.
+   */
+  override fun onBillingSetupFinished(billingResult: BillingResult) {
+    var err: IaphubError? = null
+
+    // Ignore event if store ready marked as false for testing
+    if (this.sdk.testing.storeReady == false) {
+      return
+    }
+    // Check error
+    if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
+      err = this.getErrorFromBillingResult(billingResult, "startConnection")
+    }
+    // Notify billing ready
+    this.notifyBillingReady(err)
+  }
+
+  /**
+   * Called to notify that the connection to the billing service was lost.
+   * This does not remove the billing service connection itself - this binding to the service will remain active, and will trigger onBillingSetupFinished when the billing service is next running
+   */
+  override fun onBillingServiceDisconnected() {
+    // No need to do anything here
   }
 
   /************************************ PurchasesUpdatedListener ************************************/
@@ -280,33 +320,9 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
   /************************************ Private ************************************/
 
   /**
-   * Start billing connection
-   */
-  private fun startConnection() {
-    val self = this
-
-    this.billing?.startConnection(
-      object : BillingClientStateListener {
-        // Called to notify that setup is complete.
-        override fun onBillingSetupFinished(billingResult: BillingResult) {
-          // Prevent notifying the store as ready if testing says otherwise
-          if (self.sdk.testing.storeReady == false) {
-            return
-          }
-          self.notifyBillingReady()
-        }
-        // Called to notify that the connection to the billing service was lost.
-        // This does not remove the billing service connection itself - this binding to the service will remain active, and will trigger onBillingSetupFinished when the billing service is next running
-        override fun onBillingServiceDisconnected() {
-
-        }
-      }
-    )
-  }
-
-  /**
    * Check if the billing is ready
    */
+  @Synchronized
   private fun isBillingReady(): Boolean {
     val testingValue = this.sdk.testing.storeReady
 
@@ -317,7 +333,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
   }
 
   /**
-   * Call the completion when the billing is ready
+   * Start billing connection
    */
   @Synchronized
   private fun whenBillingReady(completion: (IaphubError?, BillingClient?) -> Unit) {
@@ -331,45 +347,34 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
     if (this.isBillingReady()) {
       return completion(null, billing)
     }
-    // Create onReady callback
-    var onReadyCalled = false
-    var onReadyTimer: Timer? = null
-    val onReady = {
-      if (!onReadyCalled) {
-        onReadyCalled = true
-        val timer = onReadyTimer
-        timer?.cancel()
-        completion(null, billing)
-      }
-    }
-    // Add onReady callback
-    this.onReady.add(onReady)
-    // Force connection
-    this.startConnection()
-    // If the onReady callback has been called, no need to go further
-    if (onReadyCalled) {
+    // Add callback
+    this.onBillingReady.add(completion)
+    // Stop here if we're already starting the connection
+    if (this.isStartingConnection) {
       return
     }
-    // Otherwise create timer to check if the billing isn't ready in the next 10 seconds
+    // Mark the connection as starting
+    this.isStartingConnection = true
+    // Trigger billing startConnection
+    billing.startConnection(this)
+    // Create timer to check if the billing isn't ready in the next 20 seconds
     val self = this
-    val timeout = this.sdk.testing.storeReadyTimeout ?: 10000
-    onReadyTimer = Timer()
-    onReadyTimer.schedule(timerTask {
+    val timeout = this.sdk.testing.storeReadyTimeout ?: 20000
+    this.onBillingReadyTimer = Timer()
+    this.onBillingReadyTimer?.schedule(timerTask {
       synchronized(this) {
-        val isRemoved = self.onReady.remove(onReady)
-
-        if (isRemoved) {
-          if (self.isBillingReady()) {
-            completion(null, billing)
-          } else {
-            completion(
-              IaphubError(
-                IaphubErrorCode.billing_unavailable,
-                IaphubUnexpectedErrorCode.billing_ready_timeout
-              ), null
-            )
-          }
+        var err: IaphubError? = null
+        // Clear timer
+        self.onBillingReadyTimer = null
+        // Create error if the billing is still not ready
+        if (!self.isBillingReady()) {
+          err = IaphubError(
+            IaphubErrorCode.billing_unavailable,
+            IaphubUnexpectedErrorCode.billing_ready_timeout
+          )
         }
+        // Notify billing ready
+        self.notifyBillingReady(err)
       }
     }, timeout)
   }
@@ -620,7 +625,10 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
 
     if (responseCode == BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED) {
       errorType = IaphubErrorCode.billing_unavailable
-      message = "google play feature not supported"
+      message = "FEATURE_NOT_SUPPORTED error"
+    }
+    else if (responseCode == BillingClient.BillingResponseCode.BILLING_UNAVAILABLE) {
+      errorType = IaphubErrorCode.billing_unavailable
     }
     else if (responseCode == BillingClient.BillingResponseCode.SERVICE_DISCONNECTED) {
       errorType = IaphubErrorCode.network_error
@@ -647,14 +655,20 @@ internal class GooglePlay: Store, PurchasesUpdatedListener {
     else if (responseCode == BillingClient.BillingResponseCode.ERROR) {
       errorType = IaphubErrorCode.unexpected
       subErrorType = IaphubUnexpectedErrorCode.billing_error
+      message = "ERROR error"
     }
     else if (responseCode == BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED) {
       errorType = IaphubErrorCode.product_already_owned
     }
+    else if (responseCode == BillingClient.BillingResponseCode.ITEM_NOT_OWNED) {
+      errorType = IaphubErrorCode.unexpected
+      subErrorType = IaphubUnexpectedErrorCode.billing_error
+      message = "ITEM_NOT_OWNED error"
+    }
     else {
       errorType = IaphubErrorCode.unexpected
       subErrorType = IaphubUnexpectedErrorCode.billing_error
-      message = "(responseCode: ${responseCode})"
+      message = "unsupported error with responseCode ${responseCode}"
     }
 
     return IaphubError(error=errorType, suberror=subErrorType, message=message, params=params, fingerprint=method)

@@ -42,6 +42,6 @@ internal interface Store {
   /**
    * Notify billing is ready
    */
-  fun notifyBillingReady()
+  fun notifyBillingReady(err: IaphubError? = null)
 
 }
