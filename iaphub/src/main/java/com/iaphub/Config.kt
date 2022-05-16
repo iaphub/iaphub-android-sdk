@@ -8,6 +8,6 @@ internal object Config {
 
   val sdk = "android"
 
-  val sdkVersion = "2.0.6"
+  val sdkVersion = "2.0.7"
 
 }

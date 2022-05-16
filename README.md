@@ -27,7 +27,7 @@ Implementing In-app purchases in your app should be a piece of cake!<br/>
 
 2. Add the library to your `build.gradle` file
 ```
-implementation 'com.iaphub:iaphub-android-sdk:2.0.6'
+implementation 'com.iaphub:iaphub-android-sdk:2.0.7'
 ```
 
 3. Follow the instructions below
