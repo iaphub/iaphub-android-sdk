@@ -9,7 +9,7 @@ android {
         minSdk minVersion
         targetSdk compileVersion
         versionCode 1
-        versionName "2.0.7"
+        versionName "2.0.8"
 
         consumerProguardFiles 'consumer-rules.pro'
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
