@@ -51,7 +51,8 @@ internal enum class IaphubUnexpectedErrorCode(override val message: String): Iap
   proration_mode_invalid("proration mode invalid"),
   subscription_replace_failed("subscription replace failed"),
   compare_products_failed("compare products failed"),
-  date_parsing_failed("the parsing of a date failed")
+  date_parsing_failed("the parsing of a date failed"),
+  property_missing("a property is missing")
 }
 
 internal enum class IaphubNetworkErrorCode(override val message: String): IaphubErrorProtocol {

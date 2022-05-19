@@ -49,6 +49,15 @@ open class ActiveProduct : Product {
     this.subscriptionRenewalProduct = data["subscriptionRenewalProduct"] as? String
     this.subscriptionRenewalProductSku = data["subscriptionRenewalProductSku"] as? String
     this.subscriptionState = data["subscriptionState"] as? String
+    // Send error if the subscription state is missing
+    if (this.type.contains("subscription") && this.subscriptionState == null) {
+      IaphubError(
+        IaphubErrorCode.unexpected,
+        IaphubUnexpectedErrorCode.property_missing,
+        message = "subscriptionState not found",
+        params = mapOf("purchase" to this.purchase)
+      )
+    }
   }
 
   override fun getData(): Map<String, Any?> {
