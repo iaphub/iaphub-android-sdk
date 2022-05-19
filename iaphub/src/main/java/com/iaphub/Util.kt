@@ -42,18 +42,25 @@ internal object Util {
   /*
    * Convert ISO string to date
    */
-  fun dateFromIsoString(str: Any?, failure: ((Exception) -> Unit)? = null): Date? {
+  fun dateFromIsoString(str: Any?, allowNull: Boolean = false, failure: ((Exception) -> Unit)? = null): Date? {
     if (str == null) {
+      if (!allowNull && failure != null) {
+        failure(Exception("date cast to string failed"))
+      }
       return null
     }
 
     var strDate = str as? String
     var date: Date? = null
 
-    try {
-      if (strDate == null) {
-        throw Exception("date cast to string failed")
+    if (strDate == null) {
+      if (!allowNull && failure != null) {
+        failure(Exception("date cast to string failed"))
       }
+      return null
+    }
+
+    try {
       date = ISO8601Utils.parse(strDate, ParsePosition(0))
     }
     catch (exception: Exception) {

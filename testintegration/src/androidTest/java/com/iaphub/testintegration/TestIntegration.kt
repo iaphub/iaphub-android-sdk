@@ -326,6 +326,13 @@ class TestIntegration {
                             "sku" to "test",
                             "purchase" to "2e517bdd0613c16f11e7faz3",
                             "purchaseDate" to "2020-05-22T01:34:40.462Z",
+                            "expirationDate" to "2023-05-22T01:34:40.462Z",
+                            "subscriptionState" to "active",
+                            "subscriptionPeriodType" to "normal",
+                            "isSubscriptionRenewable" to true,
+                            "isSubscriptionRetryPeriod" to false,
+                            "isSubscriptionGracePeriod" to false,
+                            "isSubscriptionPaused" to false,
                             "webhookStatus" to "success"
                         )
                     )

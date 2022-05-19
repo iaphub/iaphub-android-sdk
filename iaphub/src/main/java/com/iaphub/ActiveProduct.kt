@@ -10,6 +10,9 @@ open class ActiveProduct : Product {
   val purchaseDate: Date?
   // Platform of the purchase
   val platform: String?
+  // Android token
+  val androidToken: String?
+
   // Subscription expiration date
   val expirationDate: Date?
   // If the subscription will auto renew
@@ -20,8 +23,6 @@ open class ActiveProduct : Product {
   val subscriptionRenewalProductSku: String?
   // Subscription state
   val subscriptionState: String?
-  // Android token
-  val androidToken: String?
 
   constructor(data: Map<String, Any?>): super(data) {
     this.purchase = data["purchase"] as? String
@@ -34,19 +35,20 @@ open class ActiveProduct : Product {
       )
     }
     this.platform = data["platform"] as? String
-    this.expirationDate = Util.dateFromIsoString(data["expirationDate"]) { exception ->
+    this.androidToken = data["androidToken"] as? String
+    // The following properties are for subscriptions only
+    this.expirationDate = Util.dateFromIsoString(str=data["expirationDate"], allowNull=!this.type.contains("subscription")) { exception ->
       IaphubError(
         IaphubErrorCode.unexpected,
         IaphubUnexpectedErrorCode.date_parsing_failed,
-        message="issue on active product expiration date, $exception",
-        params=mapOf("expirationDate" to data["expirationDate"], "purchase" to this.purchase)
+        message = "issue on active product expiration date, $exception",
+        params = mapOf("expirationDate" to data["expirationDate"], "purchase" to this.purchase)
       )
     }
     this.isSubscriptionRenewable = (data["isSubscriptionRenewable"] as? Boolean) ?: false
     this.subscriptionRenewalProduct = data["subscriptionRenewalProduct"] as? String
     this.subscriptionRenewalProductSku = data["subscriptionRenewalProductSku"] as? String
     this.subscriptionState = data["subscriptionState"] as? String
-    this.androidToken = data["androidToken"] as? String
   }
 
   override fun getData(): Map<String, Any?> {
