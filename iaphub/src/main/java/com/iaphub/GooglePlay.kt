@@ -194,7 +194,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
               "sku" to details.sku,
               "localizedTitle" to details.title,
               "localizedDescription" to details.description,
-              "price" to details.priceAmountMicros / 1000000,
+              "price" to details.priceAmountMicros.toDouble() / 1000000,
               "currency" to details.priceCurrencyCode,
               "localizedPrice" to details.price,
               "subscriptionDuration" to details.subscriptionPeriod,
