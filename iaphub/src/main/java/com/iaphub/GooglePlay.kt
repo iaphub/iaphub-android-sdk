@@ -200,7 +200,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
               "subscriptionDuration" to details.subscriptionPeriod,
               // Get information if there is an intro period,
               "subscriptionTrialDuration" to details.freeTrialPeriod,
-              "subscriptionIntroPrice" to details.introductoryPriceAmountMicros / 1000000,
+              "subscriptionIntroPrice" to details.introductoryPriceAmountMicros.toDouble() / 1000000,
               "subscriptionIntroLocalizedPrice" to details.introductoryPrice,
               "subscriptionIntroDuration" to details.introductoryPricePeriod,
               "subscriptionIntroCycles" to details.introductoryPriceCycles,

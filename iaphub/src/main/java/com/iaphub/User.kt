@@ -669,7 +669,7 @@ internal class User {
       val currency = product.currency
 
       if (price != null && currency != null) {
-        return@map ProductPricing(id=product.id, price=price, currency=currency)
+        return@map ProductPricing(id=product.id, price=price, currency=currency, introPrice=product.subscriptionIntroPrice)
       }
       return@map null
     }.filterNotNull()
@@ -677,8 +677,11 @@ internal class User {
     val samePricings = pricings.filter { newPricing ->
       // Look if we already have the pricing in memory
       val pricingFound = this.pricings.find { oldPricing ->
-        if (oldPricing.id == newPricing.id && oldPricing.price == newPricing.price && oldPricing.currency == newPricing.currency) {
-          return@find true
+        if (oldPricing.id == newPricing.id &&
+            oldPricing.price == newPricing.price &&
+            oldPricing.currency == newPricing.currency &&
+            oldPricing.introPrice == newPricing.introPrice) {
+              return@find true
         }
         return@find false
       }
@@ -688,8 +691,8 @@ internal class User {
     if (pricings.isEmpty()) {
       return completion(null)
     }
-    // No need to send a request if the pricing is the same
-    if (samePricings.size == pricings.size) {
+    // No need to send a request if the pricing is the same (except if caching disabled for testing)
+    if (samePricings.size == pricings.size && this.sdk.testing.pricingCache != false) {
       return completion(null)
     }
     // Post pricing
