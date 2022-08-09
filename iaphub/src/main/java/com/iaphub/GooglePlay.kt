@@ -79,6 +79,10 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
     if (this.buyRequest != null) {
       return completion(IaphubError(IaphubErrorCode.buy_processing), null)
     }
+    // Return an error if a restore is currently processing
+    if (this.isRestoring) {
+      return completion(IaphubError(IaphubErrorCode.restore_processing), null)
+    }
     // Get and check sku
     val sku = options["sku"]
     if (sku == null) {
@@ -148,6 +152,10 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
     // Return an error if a restore is currently processing
     if (this.isRestoring) {
       return completion(IaphubError(IaphubErrorCode.restore_processing))
+    }
+    // Return an error if a buy request is currently processing
+    if (this.buyRequest != null) {
+      return completion(IaphubError(IaphubErrorCode.buy_processing))
     }
     // Mark as restoring
     this.isRestoring = true
