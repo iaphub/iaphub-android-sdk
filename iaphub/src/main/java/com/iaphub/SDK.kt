@@ -304,19 +304,23 @@ open class SDK: LifecycleObserver
               shouldFinishReceipt = true
               // Check if the receipt is invalid
               if (receiptResponse.status == "invalid") {
-                error = IaphubError(IaphubErrorCode.receipt_invalid)
+                error = IaphubError(IaphubErrorCode.receipt_invalid, params=mapOf("context" to receipt.context), silent=receipt.context != "purchase")
               }
               // Check if the receipt is failed
               else if (receiptResponse.status == "failed") {
-                error = IaphubError(IaphubErrorCode.receipt_failed)
+                error = IaphubError(IaphubErrorCode.receipt_failed, params=mapOf("context" to receipt.context))
               }
               // Check if the receipt is stale
               else if (receiptResponse.status == "stale") {
-                error = IaphubError(IaphubErrorCode.receipt_stale)
+                error = IaphubError(IaphubErrorCode.receipt_stale, params=mapOf("context" to receipt.context), silent=receipt.context != "purchase")
+              }
+              // Check if the receipt is processing
+              else if (receiptResponse.status == "processing") {
+                error = IaphubError(IaphubErrorCode.receipt_processing, params=mapOf("context" to receipt.context), silent=receipt.context != "purchase")
               }
               // Check any other status different than success
               else if (receiptResponse.status != "success") {
-                error = IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.receipt_validation_response_invalid, "status: ${receiptResponse.status}")
+                error = IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.receipt_validation_response_invalid, "status: ${receiptResponse.status}", params=mapOf("context" to receipt.context))
                 shouldFinishReceipt = false
               }
               // Get transaction if we're in a purchase context
