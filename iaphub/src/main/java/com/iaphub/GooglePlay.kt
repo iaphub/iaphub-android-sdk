@@ -21,6 +21,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
   private var cachedSkusDetails: MutableMap<String, SkuDetails> = mutableMapOf()
   private var isRestoring: Boolean = false
   private var isStartingConnection: Boolean = false
+  private var hasBillingUnavailable: Boolean = false
 
   /**
    * Constructor
@@ -262,6 +263,19 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
     var billing = this.billing
     var err = error
 
+    // Add flag that the user has a billing unavailable issue
+    if (error?.code == "billing_unavailable") {
+      this.hasBillingUnavailable = true
+    }
+    // Otherwise if the billing is now ready after a previous billing_unavailable error, send a log
+    else if (error == null && this.hasBillingUnavailable) {
+      this.hasBillingUnavailable = false
+      Iaphub.user?.sendLog(mapOf(
+        "level" to "info",
+        "message" to "Billing ready after previous billing_unavailable error",
+        "fingerprint" to "billing_unavailable_now_ready"
+      ))
+    }
     // Check the billing has been started
     if (billing == null) {
       err = IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.start_missing)
@@ -387,7 +401,8 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
         if (!self.isBillingReady()) {
           err = IaphubError(
             IaphubErrorCode.billing_unavailable,
-            IaphubUnexpectedErrorCode.billing_ready_timeout
+            IaphubUnexpectedErrorCode.billing_ready_timeout,
+            silentLog=self.hasBillingUnavailable
           )
         }
         // Notify billing ready
@@ -642,6 +657,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
     var subErrorType: IaphubErrorProtocol? = null
     var message: String? = null
     var params = mapOf("method" to method, "responseCode" to responseCode, "message" to billingResult.debugMessage)
+    var silentLog = false
 
     if (responseCode == BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED) {
       errorType = IaphubErrorCode.billing_unavailable
@@ -650,6 +666,10 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
     else if (responseCode == BillingClient.BillingResponseCode.BILLING_UNAVAILABLE) {
       errorType = IaphubErrorCode.billing_unavailable
       message = billingResult.debugMessage
+      // Silence log if we already had a billing unavailable error
+      if (this.hasBillingUnavailable) {
+        silentLog = true
+      }
     }
     else if (responseCode == BillingClient.BillingResponseCode.SERVICE_DISCONNECTED) {
       errorType = IaphubErrorCode.network_error
@@ -693,7 +713,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
       message = "unsupported error with responseCode ${responseCode}"
     }
 
-    return IaphubError(error=errorType, suberror=subErrorType, message=message, params=params, fingerprint=method)
+    return IaphubError(error=errorType, suberror=subErrorType, message=message, params=params, fingerprint=method, silentLog=silentLog)
   }
 
   /**

@@ -355,6 +355,39 @@ internal class User {
     this.needsFetch = true
   }
 
+  /*
+   * Send log
+   */
+  fun sendLog(options: Map<String, Any?>) {
+    // Build params
+    val params = mutableMapOf(
+      "data" to mutableMapOf(
+        "body" to mapOf(
+          "message" to mapOf("body" to options["message"])
+        ),
+        "level" to (options["level"] ?: "error"),
+        "environment" to Iaphub.environment,
+        "platform" to Config.sdk,
+        "framework" to Iaphub.sdk,
+        "code_version" to Config.sdkVersion,
+        "person" to mapOf("id" to Iaphub.appId),
+        "context" to "${Iaphub.appId}/${Iaphub.user?.id ?: ""}"
+      )
+    )
+    val custom = options["params"]
+    if (custom != null) {
+      params["data"]?.set("custom", custom)
+    }
+    val fingerprint = options["fingerprint"]
+    if (fingerprint != null) {
+      params["data"]?.set("fingerprint", fingerprint)
+    }
+    // Post log
+    this.api?.postLog(params) { _, _ ->
+      // No need to do anything if there is an error
+    }
+  }
+
   /******************************** PRIVATE ********************************/
 
   /*

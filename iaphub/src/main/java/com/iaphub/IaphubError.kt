@@ -9,7 +9,7 @@ class IaphubError {
   val fingerprint: String
   var sent: Boolean = false
 
-  internal constructor(error: IaphubErrorCode, suberror: IaphubErrorProtocol? = null, message: String? = null, params: Map<String, Any?> = emptyMap(), silent: Boolean = false, fingerprint: String = "") {
+  internal constructor(error: IaphubErrorCode, suberror: IaphubErrorProtocol? = null, message: String? = null, params: Map<String, Any?> = emptyMap(), silent: Boolean = false, silentLog: Boolean = false, fingerprint: String = "") {
     var fullMessage = error.message
 
     this.code = error.name
@@ -24,14 +24,14 @@ class IaphubError {
     }
     this.message = fullMessage
     if (!silent) {
-      this.send()
+      this.send(silentLog)
     }
   }
 
   /**
    * Send
    */
-  fun send() {
+  fun send(silentLog: Boolean = false) {
     // Ignore some server errors (they are not real errors)
     if (this.code == "server_error" && listOf("user_not_found", "user_authenticated").contains(this.subcode)) {
       return
@@ -43,7 +43,9 @@ class IaphubError {
     // Trigger listener and send log
     this.sent = true
     this.triggerListener()
-    this.sendLog()
+    if (!silentLog) {
+      this.sendLog()
+    }
   }
 
   /**
@@ -76,29 +78,17 @@ class IaphubError {
     if (this.fingerprint != "") {
       fullFingerprint = "${fullFingerprint}_${this.fingerprint}"
     }
-    // Send request
-    Iaphub.user?.api?.postLog(mapOf(
-      "data" to mapOf(
-        "body" to mapOf(
-          "message" to mapOf("body" to this.message)
-        ),
-        "environment" to Iaphub.environment,
-        "platform" to Config.sdk,
-        "framework" to Iaphub.sdk,
-        "code_version" to Config.sdkVersion,
-        "custom" to this.params + mapOf(
-          "osVersion" to Iaphub.osVersion,
-          "sdkVersion" to Iaphub.sdkVersion,
-          "code" to this.code,
-          "subcode" to this.subcode
-        ),
-        "person" to mapOf("id" to Iaphub.appId),
-        "context" to "${Iaphub.appId}/${Iaphub.user?.id ?: ""}",
-        "fingerprint" to fullFingerprint
-      )
-    )) { _, _ ->
-      // No need to do anything if there is an error
-    }
+    // Send log
+    Iaphub.user?.sendLog(mapOf(
+      "message" to this.message,
+      "params" to this.params + mapOf(
+        "osVersion" to Iaphub.osVersion,
+        "sdkVersion" to Iaphub.sdkVersion,
+        "code" to this.code,
+        "subcode" to this.subcode
+      ),
+      "fingerprint" to fullFingerprint
+    ))
   }
 
   fun getData(): Map<String, Any?> {
