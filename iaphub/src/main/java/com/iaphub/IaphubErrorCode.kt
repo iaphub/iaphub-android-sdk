@@ -12,7 +12,7 @@ internal enum class IaphubErrorCode(override val message: String): IaphubErrorPr
   billing_unavailable("The billing service is unavailable"),
   anonymous_purchase_not_allowed("Anonymous purchase are not allowed, identify user using the login method or enable the anonymous purchase option"),
   user_cancelled("The purchase has been cancelled by the user"),
-  //deferred_payment("The payment has been deferred (awaiting approval from parental control)"),
+  deferred_payment("The payment has been deferred (transaction pending, its final status is pending external action)"),
   product_not_available("The requested product isn't available for purchase"),
   product_already_owned("Product already owned, restore required"),
   receipt_failed("Receipt validation failed, receipt processing will be automatically retried if possible"),

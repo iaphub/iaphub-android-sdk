@@ -64,7 +64,7 @@ class IaphubError {
       return
     }
     // Ignore some errors when sending a log isn't necessary
-    if (listOf("user_cancelled").contains(this.code)) {
+    if (listOf("user_cancelled", "deferred_payment").contains(this.code)) {
       return
     }
     // Check rate limit

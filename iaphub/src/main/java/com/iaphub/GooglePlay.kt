@@ -311,7 +311,16 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
   override fun onPurchasesUpdated(billingResult: BillingResult, purchases: List<Purchase>?) {
     // Handle error
     if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
-      this.processBuyRequest(null, this.getErrorFromBillingResult(billingResult, "onPurchasesUpdated"), null)
+      var err: IaphubError? = null
+      // Handle when the user tries to buy a product that has a pending purchase
+      if (this.buyRequest != null && billingResult.responseCode == BillingClient.BillingResponseCode.DEVELOPER_ERROR && billingResult.debugMessage.contains("pending purchase")) {
+        err = IaphubError(IaphubErrorCode.deferred_payment)
+      }
+      // Otherwise get error from billing result
+      else {
+        err = this.getErrorFromBillingResult(billingResult, "onPurchasesUpdated")
+      }
+      this.processBuyRequest(null, err, null)
       return
     }
     // Handle deferred subscription replace
@@ -443,6 +452,9 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
       it(receipt) { err, shouldFinish, receiptTransaction ->
         // Finish transaction
         if (shouldFinish) {
+          if (receiptTransaction == null) {
+            IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.property_missing, "couldn't find transaction in receipt in order to determine product type", params=mapOf("context" to receipt.context, "sku" to receipt.sku, "orderId" to purchase.orderId))
+          }
           val isConsumable = listOf("consumable", "subscription").contains(receiptTransaction?.type)
           this.finishPurchase(purchase, isConsumable) { _ ->
             completeProcess(err, receiptTransaction)
@@ -567,7 +579,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
     }
     // Check that it has a PURCHASED state
     if (purchase.purchaseState != 1) {
-      return completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.acknowledge_failed, "purchase state invalid (value: ${purchase.purchaseState})"))
+      return completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.acknowledge_failed, "purchase state invalid (value: ${purchase.purchaseState})", silent=true))
     }
     // Handle testing
     if (this.sdk.testing.storeLibraryMock == true) {
@@ -659,11 +671,12 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
     else if (responseCode == BillingClient.BillingResponseCode.DEVELOPER_ERROR) {
       errorType = IaphubErrorCode.unexpected
       subErrorType = IaphubUnexpectedErrorCode.billing_developer_error
+      message = billingResult.debugMessage
     }
     else if (responseCode == BillingClient.BillingResponseCode.ERROR) {
       errorType = IaphubErrorCode.unexpected
       subErrorType = IaphubUnexpectedErrorCode.billing_error
-      message = "ERROR error"
+      message = "ERROR error, " + billingResult.debugMessage
     }
     else if (responseCode == BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED) {
       errorType = IaphubErrorCode.product_already_owned

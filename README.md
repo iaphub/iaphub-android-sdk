@@ -226,9 +226,9 @@ Call the ``buy`` method to buy a product<br/><br/>
       else if (err.code == "billing_unavailable") {
         message = "In-app purchase not allowed"
       }
-      // The payment has been deferred (awaiting approval from parental control)
+      // The payment has been deferred (transaction pending, its final status is pending external action)
       else if (err.code == "deferred_payment") {
-        message = "Your purchase is awaiting approval from the parental control"
+        message = "Purchase awaiting approval, your purchase has been processed but is awaiting approval"
       }
       /*
         * The remote server couldn't be reached properly

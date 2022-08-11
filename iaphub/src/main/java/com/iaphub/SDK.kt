@@ -314,6 +314,11 @@ open class SDK: LifecycleObserver
               else if (receiptResponse.status == "stale") {
                 error = IaphubError(IaphubErrorCode.receipt_stale, params=mapOf("context" to receipt.context), silent=receipt.context != "purchase")
               }
+              // Check if the receipt is deferred (its final status is pending external action)
+              else if (receiptResponse.status == "deferred") {
+                error = IaphubError(IaphubErrorCode.deferred_payment, params=mapOf("context" to receipt.context), silent=true)
+                shouldFinishReceipt = false
+              }
               // Check if the receipt is processing
               else if (receiptResponse.status == "processing") {
                 error = IaphubError(IaphubErrorCode.receipt_processing, params=mapOf("context" to receipt.context), silent=receipt.context != "purchase")
@@ -323,38 +328,48 @@ open class SDK: LifecycleObserver
                 error = IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.receipt_validation_response_invalid, "status: ${receiptResponse.status}", params=mapOf("context" to receipt.context))
                 shouldFinishReceipt = false
               }
-              // Get transaction if we're in a purchase context
-              if (error == null && receipt.context == "purchase") {
-                // Get the new transaction from the response
+              // If there is no error, try to find the transaction
+              if (error == null) {
+                // Look first in the new transactions
                 transaction = receiptResponse.findTransactionBySku(sku = receipt.sku, filter = "new")
-                // If transaction not found, look if it is a product change
+                // If the transaction hasn't been found
                 if (transaction == null) {
-                  transaction = receiptResponse.findTransactionBySku(
-                    sku = receipt.sku,
-                    filter = "new",
-                    useSubscriptionRenewalProductSku = true
-                  )
+                  // If it is purchase, look for a product change
+                  if (receipt.context == "purchase") {
+                    transaction = receiptResponse.findTransactionBySku(
+                      sku = receipt.sku,
+                      filter = "new",
+                      useSubscriptionRenewalProductSku = true
+                    )
+                  }
+                  // Otherwise look in the old transactions
+                  else {
+                    transaction = receiptResponse.findTransactionBySku(sku = receipt.sku, filter = "old")
+                  }
                 }
-                // Otherwise we have an error
-                if (transaction == null) {
-                  // Check if it is because of a subscription already active
-                  val oldTransaction = receiptResponse.findTransactionBySku(sku = receipt.sku, filter = "old")
-                  if ((oldTransaction?.type == "non_consumable") || (oldTransaction?.subscriptionState != null && oldTransaction?.subscriptionState != "expired")) {
-                    // Check if the transaction belongs to a different user
-                    if (oldTransaction.user != null && user.iaphubId != null && oldTransaction.user != user.iaphubId) {
-                      error = IaphubError(IaphubErrorCode.user_conflict, params=mapOf("loggedUser" to user.iaphubId, "transactionUser" to oldTransaction.user))
-                    } else {
-                      error = IaphubError(IaphubErrorCode.product_already_purchased, params=mapOf("sku" to receipt.sku))
+                // If it is a purchase, check for errors
+                if (receipt.context == "purchase") {
+                  // If we didn't find any transaction, we have an error
+                  if (transaction == null) {
+                    // Check if it is because of a subscription already active
+                    val oldTransaction = receiptResponse.findTransactionBySku(sku = receipt.sku, filter = "old")
+                    if ((oldTransaction?.type == "non_consumable") || (oldTransaction?.subscriptionState != null && oldTransaction?.subscriptionState != "expired")) {
+                      // Check if the transaction belongs to a different user
+                      if (oldTransaction.user != null && user.iaphubId != null && oldTransaction.user != user.iaphubId) {
+                        error = IaphubError(IaphubErrorCode.user_conflict, params=mapOf("loggedUser" to user.iaphubId, "transactionUser" to oldTransaction.user))
+                      } else {
+                        error = IaphubError(IaphubErrorCode.product_already_purchased, params=mapOf("sku" to receipt.sku))
+                      }
+                    }
+                    // Otherwise it means the product sku wasn't in the receipt
+                    else {
+                      error = IaphubError(IaphubErrorCode.transaction_not_found, params=mapOf("sku" to receipt.sku))
                     }
                   }
-                  // Otherwise it means the product sku wasn't in the receipt
-                  else {
-                    error = IaphubError(IaphubErrorCode.transaction_not_found, params=mapOf("sku" to receipt.sku))
+                  // If we have a transaction check that it belongs to the same user
+                  else if (transaction?.user != null && user.iaphubId != null && transaction?.user != user.iaphubId) {
+                    error = IaphubError(IaphubErrorCode.user_conflict, params=mapOf("loggedUser" to user.iaphubId, "transactionUser" to transaction?.user))
                   }
-                }
-                // If we have a transaction check that it belongs to the same user
-                else if (transaction?.user != null && user.iaphubId != null && transaction?.user != user.iaphubId) {
-                  error = IaphubError(IaphubErrorCode.user_conflict, params=mapOf("loggedUser" to user.iaphubId, "transactionUser" to transaction?.user))
                 }
               }
               // Call finish
