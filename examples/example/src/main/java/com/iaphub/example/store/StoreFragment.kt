@@ -74,9 +74,9 @@ class StoreFragment: Fragment(), ProductsAdapter.ProductsAdapterListener {
                 if (err.code == "user_cancelled" || err.code == "product_already_purchased") {
                     // No need to show a message here
                 }
-                // The billing is unavailable (An iPhone can be restricted from accessing the Apple App Store)
+                // The billing is unavailable
                 else if (err.code == "billing_unavailable") {
-                    message = "In-app purchase not allowed"
+                    message = "In-app billing not available, make sure you're connected to your Google Play account and your Google Play Store is up to date"
                 }
                 // The payment has been deferred (transaction pending, its final status is pending external action)
                 else if (err.code == "deferred_payment") {
