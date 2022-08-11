@@ -645,10 +645,11 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
 
     if (responseCode == BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED) {
       errorType = IaphubErrorCode.billing_unavailable
-      message = "FEATURE_NOT_SUPPORTED error"
+      message = "FEATURE_NOT_SUPPORTED error" + billingResult.debugMessage
     }
     else if (responseCode == BillingClient.BillingResponseCode.BILLING_UNAVAILABLE) {
       errorType = IaphubErrorCode.billing_unavailable
+      message = billingResult.debugMessage
     }
     else if (responseCode == BillingClient.BillingResponseCode.SERVICE_DISCONNECTED) {
       errorType = IaphubErrorCode.network_error
