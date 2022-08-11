@@ -59,24 +59,23 @@ internal class User {
         return@refresh completion(err, null)
       }
       // Get product details
-      this.getProductBySku(sku) { err, product ->
-        // Check error
-        if (product == null) {
-          return@getProductBySku completion(err, null)
-        }
-        // Check for cross platform conflicts if it is a subscription
-        if (product.type.contains("subscription")) {
-          val conflictedSubscription = this.activeProducts.find { item -> item.type.contains("subscription") && item.platform != "android" }
-          if (crossPlatformConflict && conflictedSubscription != null) {
-            return@getProductBySku completion(IaphubError(IaphubErrorCode.cross_platform_conflict, null,"platform: ${conflictedSubscription.platform}"), null)
+      this.getProductBySku(sku) { product ->
+        // If we have the product (we could not have the products if the user purchases a product that isn't in the products for sale)
+        if (product != null) {
+          // Check for cross platform conflicts if it is a subscription
+          if (product.type.contains("subscription")) {
+            val conflictedSubscription = this.activeProducts.find { item -> item.type.contains("subscription") && item.platform != "android" }
+            if (crossPlatformConflict && conflictedSubscription != null) {
+              return@getProductBySku completion(IaphubError(IaphubErrorCode.cross_platform_conflict, null,"platform: ${conflictedSubscription.platform}"), null)
+            }
           }
-        }
-        // Check for renewable subscription replace
-        if (product.type == "renewable_subscription" && product.group != null) {
-          val subscriptionToReplace = this.activeProducts.find { item -> item.type == "renewable_subscription" && item.group == product.group && item.androidToken != null }
+          // Check for renewable subscription replace
+          if (product.type == "renewable_subscription" && product.group != null) {
+            val subscriptionToReplace = this.activeProducts.find { item -> item.type == "renewable_subscription" && item.group == product.group && item.androidToken != null }
 
-          if (subscriptionToReplace != null) {
-            options["oldPurchaseToken"] = subscriptionToReplace.androidToken
+            if (subscriptionToReplace != null) {
+              options["oldPurchaseToken"] = subscriptionToReplace.androidToken
+            }
           }
         }
         // Launch purchase
@@ -236,7 +235,7 @@ internal class User {
   /*
    * Get product by its sku
    */
-  fun getProductBySku(sku: String, completion: (IaphubError?, Product?) -> Unit) {
+  fun getProductBySku(sku: String, completion: (Product?) -> Unit) {
     // Search in products for sale
     var product = this.productsForSale.find { product -> product.sku == sku }
     // Search in active products
@@ -244,13 +243,7 @@ internal class User {
       this.activeProducts.find { product -> product.sku == sku }
     }
     // Return product
-    if (product != null) {
-      completion(null, product)
-    }
-    // Otherwise return error
-    else {
-      completion(IaphubError(error=IaphubErrorCode.product_not_available, params=mapOf("sku" to sku)), null)
-    }
+    completion(product)
   }
 
   /*
