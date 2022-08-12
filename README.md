@@ -171,6 +171,8 @@ You should use this method when displaying the page with the list of your produc
 
 ⚠ If a product is returned by the [API](https://www.iaphub.com/docs/api/get-user/) but the sku cannot be loaded, it'll be filtered from the list and an 'unexpected' error will be returned in the `setOnErrorListener` listener.
 
+⚠ If you have multiple Android offers, the oldest (first one you've created) will be used by default.
+
 ```kotlin
 Iaphub.getProductsForSale { err: IaphubError?, products: List<Product>? ->
   // On a success err should be null
@@ -312,14 +314,18 @@ Iaphub.restore { err: IaphubError? ->
 | localizedDescription | `String?` | Product description (Ex: "Join the community with a membership") |
 | group | `String?` | ⚠ Only available if the product as a group<br>Group id (From IAPHUB) |
 | groupName | `String?` | ⚠ Only available if the product as a group<br>Name of the product group created on IAPHUB (Ex: "premium") |
-| subscriptionPeriodType | `String?` | ⚠ Only available for a subscription<br>Subscription period type (Possible values: 'normal', 'trial', 'intro')<br>If the subscription is active it is the current period otherwise it is the period if the user purchase the subscription |
 | subscriptionDuration | `String?` | ⚠ Only available for a subscription<br> Duration of the subscription cycle specified in the ISO 8601 format (Possible values: 'P1W', 'P1M', 'P3M', 'P6M', 'P1Y') |
-| subscriptionIntroPrice | `BigDecimal?` | ⚠ Only available for a subscription with an introductory price<br>Introductory price amount (Ex: 2.99) |
-| subscriptionIntroLocalizedPrice | `String?` | ⚠ Only available for a subscription with an introductory price<br>Localized introductory price (Ex: "$2.99") |
-| subscriptionIntroPayment | `String?` | ⚠ Only available for a subscription with an introductory price<br>Payment type of the introductory offer (Possible values: 'as_you_go', 'upfront') |
-| subscriptionIntroDuration | `String?` | ⚠ Only available for a subscription with an introductory price<br>Duration of an introductory cycle specified in the ISO 8601 format (Possible values: 'P1W', 'P1M', 'P3M', 'P6M', 'P1Y') |
-| subscriptionIntroCycles | `Int?` | ⚠ Only available for a subscription with an introductory price<br>Number of cycles in the introductory offer |
-| subscriptionTrialDuration | `String?` | ⚠ Only available for a subscription with a trial<br>Duration of the trial specified in the ISO 8601 format |
+| subscriptionIntroPhases | `[SubscriptionIntroPhase]?` | ⚠ Only available for a subscription<br> Ordered list of the subscription intro phases (intro price, free trial) |
+
+### SubscriptionIntroPhase
+| Prop  | Type | Description |
+| :------------ |:---------------:| :-----|
+| type | `String` | Introductory type (Possible values: 'trial', 'intro')  |
+| price | `Double` | Introductory price amount (Ex: 2.99) |
+| currency | `String` | Introductory price currency code (Ex: "USD") |
+| localizedPrice | `String` | Localized introductory price (Ex: "$2.99") |
+| cycleCount | `String` | Number of cycles in the introductory offer |
+| cycleDuration | `String` | Duration of a introductory cycle specified in the ISO 8601 format (Possible values: 'P1W', 'P1M', 'P3M', 'P6M', 'P1Y') |
 
 ### ActiveProduct (inherit from Product)
 | Prop  | Type | Description |
@@ -332,6 +338,7 @@ Iaphub.restore { err: IaphubError? ->
 | subscriptionRenewalProduct | `String?` | Subscription product id of the next renewal (only defined if different than the current product) |
 | subscriptionRenewalProductSku | `String?` | Subscription product sku of the next renewal |
 | subscriptionState | `String?` | State of the subscription<br>(Possible values: 'active', 'grace_period', 'retry_period', 'paused') |
+| subscriptionPeriodType | `String?` | Current phase type of the subscription<br>(Possible values: 'normal', 'trial', 'intro') |
 | androidToken | `String?` | Android purchase token of the transaction |
 
 ### ReceiptTransaction (inherit from ActiveProduct)

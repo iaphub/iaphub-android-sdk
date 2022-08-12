@@ -23,6 +23,8 @@ open class ActiveProduct : Product {
   val subscriptionRenewalProductSku: String?
   // Subscription state
   val subscriptionState: String?
+  // Subscription period type (Possible values: 'normal', 'trial', 'intro')
+  val subscriptionPeriodType: String?
 
   constructor(data: Map<String, Any?>): super(data) {
     this.purchase = data["purchase"] as? String
@@ -49,6 +51,7 @@ open class ActiveProduct : Product {
     this.subscriptionRenewalProduct = data["subscriptionRenewalProduct"] as? String
     this.subscriptionRenewalProductSku = data["subscriptionRenewalProductSku"] as? String
     this.subscriptionState = data["subscriptionState"] as? String
+    this.subscriptionPeriodType = data["subscriptionPeriodType"] as? String
     // Send error if the subscription state is missing
     if (this.type.contains("subscription") && this.subscriptionState == null) {
       IaphubError(
@@ -71,6 +74,7 @@ open class ActiveProduct : Product {
       "subscriptionRenewalProduct" to this.subscriptionRenewalProduct as? Any?,
       "subscriptionRenewalProductSku" to this.subscriptionRenewalProductSku as? Any?,
       "subscriptionState" to this.subscriptionState as? Any?,
+      "subscriptionPeriodType" to this.subscriptionPeriodType as? Any?,
       "androidToken" to this.androidToken as? Any?
     )
 

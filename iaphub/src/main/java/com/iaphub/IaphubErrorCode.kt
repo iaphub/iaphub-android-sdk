@@ -53,6 +53,7 @@ internal enum class IaphubUnexpectedErrorCode(override val message: String): Iap
   subscription_replace_failed("subscription replace failed"),
   compare_products_failed("compare products failed"),
   date_parsing_failed("the parsing of a date failed"),
+  intro_phase_parsing_failed("the parsing of a intro phase failed"),
   property_missing("a property is missing")
 }
 

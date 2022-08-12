@@ -482,7 +482,8 @@ internal class User {
       data.putAll(mapOf(
         "id" to this.id as Any,
         "fetchDate" to Util.dateToIsoString(this.fetchDate),
-        "pricings" to this.pricings.map { pricing -> pricing.getData() }
+        "pricings" to this.pricings.map { pricing -> pricing.getData() },
+        "cacheVersion" to Config.cacheVersion
       ))
     }
     return data
@@ -496,7 +497,7 @@ internal class User {
       IaphubError(
         IaphubErrorCode.unexpected,
         IaphubUnexpectedErrorCode.update_item_parsing_failed,
-        message="product for sale, ${err}",
+        message="product basic details\n\n${err.stackTraceToString()}",
         params=mapOf("item" to item)
       )
     }
@@ -504,13 +505,12 @@ internal class User {
       IaphubError(
         IaphubErrorCode.unexpected,
         IaphubUnexpectedErrorCode.update_item_parsing_failed,
-        message="active product, ${err}",
+        message="active basic details\n\n${err.stackTraceToString()}",
         params=mapOf("item" to item)
       )
     }
     val products = productsForSale + activeProducts
     val productSkus = products.map { product -> product.sku }
-
     this.sdk.store?.getProductsDetails(productSkus) { err, productsDetails ->
       // Check err
       if (err != null) {
@@ -622,12 +622,12 @@ internal class User {
         }
       }
       // Use cache data if it comes from the same user id
-      if (jsonMap != null && (jsonMap["id"] as? String == this.id)) {
-        this.fetchDate = Util.dateFromIsoString(jsonMap["fetchDate"]) { exception ->
+      if (jsonMap != null && (jsonMap["id"] as? String == this.id) && (jsonMap["version"] == Config.cacheVersion)) {
+        this.fetchDate = Util.dateFromIsoString(jsonMap["fetchDate"]) { err ->
           IaphubError(
             IaphubErrorCode.unexpected,
             IaphubUnexpectedErrorCode.get_cache_data_item_parsing_failed,
-            message="issue on fetch date, $exception",
+            message="issue on fetch date, $err",
             params=mapOf("fetchDate" to jsonMap["fetchDate"])
           )
         }
@@ -635,7 +635,7 @@ internal class User {
           IaphubError(
             IaphubErrorCode.unexpected,
             IaphubUnexpectedErrorCode.get_cache_data_item_parsing_failed,
-            message="issue on product for sale, $err",
+            message="issue on product for sale\n\n${err.stackTraceToString()}",
             params=mapOf("item" to item)
           )
         }
@@ -643,7 +643,7 @@ internal class User {
           IaphubError(
             IaphubErrorCode.unexpected,
             IaphubUnexpectedErrorCode.get_cache_data_item_parsing_failed,
-            message="issue on active product, $err",
+            message="issue on active product\n\n${err.stackTraceToString()}",
             params=mapOf("item" to item)
           )
         }
@@ -651,7 +651,7 @@ internal class User {
           IaphubError(
             IaphubErrorCode.unexpected,
             IaphubUnexpectedErrorCode.get_cache_data_item_parsing_failed,
-            message="issue on pricing, $err",
+            message="issue on pricing\n\n${err.stackTraceToString()}",
             params=mapOf("item" to item)
           )
         }
@@ -695,7 +695,7 @@ internal class User {
       val currency = product.currency
 
       if (price != null && currency != null) {
-        return@map ProductPricing(id=product.id, price=price, currency=currency, introPrice=product.subscriptionIntroPrice)
+        return@map ProductPricing(id=product.id, price=price, currency=currency, introPrice=product.subscriptionIntroPhases?.elementAtOrNull(0)?.price)
       }
       return@map null
     }.filterNotNull()

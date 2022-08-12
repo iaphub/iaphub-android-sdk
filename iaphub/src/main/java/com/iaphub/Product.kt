@@ -12,8 +12,6 @@ open class Product: ProductDetails {
   var group: String?
   // Group name
   var groupName: String?
-  // Subscription period type ("normal", "trial", "intro")
-  var subscriptionPeriodType: String?
 
   // Details source
   internal var details: ProductDetails? = null
@@ -23,7 +21,6 @@ open class Product: ProductDetails {
     this.type = data["type"] as String
     this.group = data["group"] as? String
     this.groupName = data["groupName"] as? String
-    this.subscriptionPeriodType = data["subscriptionPeriodType"] as? String
   }
 
   override fun getData(): Map<String, Any?> {
@@ -32,8 +29,7 @@ open class Product: ProductDetails {
       "id" to this.id as? Any?,
       "type" to this.type as? Any?,
       "group" to this.group as? Any?,
-      "groupName" to this.groupName as? Any?,
-      "subscriptionPeriodType" to this.subscriptionPeriodType as? Any?
+      "groupName" to this.groupName as? Any?
     )
 
     return LinkedHashMap(data1).apply { putAll(data2) }
