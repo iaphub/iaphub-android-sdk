@@ -171,7 +171,7 @@ You should use this method when displaying the page with the list of your produc
 
 ⚠ If a product is returned by the [API](https://www.iaphub.com/docs/api/get-user/) but the sku cannot be loaded, it'll be filtered from the list and an 'unexpected' error will be returned in the `setOnErrorListener` listener.
 
-⚠ If you have multiple Android offers, the oldest (first one you've created) will be used by default.
+⚠ If you have multiple Android offers, the oldest (first one you've created) will be used by default. We do not support the Android multiple offers system in order to have a common system with iOS. To have a different offer simply create a new product, you can do pretty much everything with [smart listings](https://www.iaphub.com/docs/resources/smart-listing).
 
 ```kotlin
 Iaphub.getProductsForSale { err: IaphubError?, products: List<Product>? ->
