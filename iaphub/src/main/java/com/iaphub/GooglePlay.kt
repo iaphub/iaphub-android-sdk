@@ -242,7 +242,8 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
                       "localizedPrice" to phase.formattedPrice,
                       "cycleDuration" to phase.billingPeriod,
                       "cycleCount" to phase.billingCycleCount,
-                      "payment" to if (phase.recurrenceMode == com.android.billingclient.api.ProductDetails.RecurrenceMode.NON_RECURRING) "upfront" else "as_you_go"
+                      // Only way to check payment type, checking getRecurrenceMode() doesn't work
+                      "payment" to if (phase.billingCycleCount == 1) "upfront" else "as_you_go"
                     )
                   }
                 }
