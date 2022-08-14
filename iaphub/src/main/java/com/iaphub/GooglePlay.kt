@@ -220,7 +220,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
           }
           // Get subscription info
           else {
-            // Get the first offer, we'll implement a system later to select an offer
+            // Get offer
             val subscriptionOfferDetails = this.getSubscriptionOffer(details)
             // Use first pricing phase as default
             var phaseList = subscriptionOfferDetails?.pricingPhases?.pricingPhaseList
@@ -858,6 +858,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
    */
   private fun getSubscriptionOffer(details: com.android.billingclient.api.ProductDetails):  com.android.billingclient.api.ProductDetails.SubscriptionOfferDetails? {
     // The first index (0) should contain the latest offer, then the previous offers and the last one is a base offer with no phases
+    // When an offer has been used, all the other offers should disappear, leaving the base offer only
     val lastIndex = details.subscriptionOfferDetails?.lastIndex
     val index = if (lastIndex != null && lastIndex > 0) lastIndex - 1 else 0
 
