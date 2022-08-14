@@ -51,7 +51,6 @@ open class ActiveProduct : Product {
     this.subscriptionRenewalProduct = data["subscriptionRenewalProduct"] as? String
     this.subscriptionRenewalProductSku = data["subscriptionRenewalProductSku"] as? String
     this.subscriptionState = data["subscriptionState"] as? String
-    this.subscriptionPeriodType = data["subscriptionPeriodType"] as? String
     // Send error if the subscription state is missing
     if (this.type.contains("subscription") && this.subscriptionState == null) {
       IaphubError(
@@ -60,6 +59,20 @@ open class ActiveProduct : Product {
         message = "subscriptionState not found",
         params = mapOf("purchase" to this.purchase)
       )
+    }
+    // Set subscription period type and filter intro phases
+    this.subscriptionPeriodType = data["subscriptionPeriodType"] as? String
+    this.filterIntroPhases()
+  }
+
+  private fun filterIntroPhases() {
+    var isValid = false
+
+    this.subscriptionIntroPhases = this.subscriptionIntroPhases?.filter { introPhase ->
+      if (!isValid && introPhase.type == this.subscriptionPeriodType) {
+        isValid = true
+      }
+      return@filter isValid
     }
   }
 
@@ -79,6 +92,11 @@ open class ActiveProduct : Product {
     )
 
     return LinkedHashMap(data1).apply { putAll(data2) }
+  }
+
+  override fun setDetails(details: ProductDetails) {
+    super.setDetails(details)
+    this.filterIntroPhases()
   }
 
 }
