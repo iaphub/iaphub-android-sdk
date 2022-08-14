@@ -115,7 +115,8 @@ internal class Network {
       }
       url.scheme(urlBase.scheme)
       url.host(urlBase.host)
-      url.addEncodedPathSegments(urlBase.encodedPath)
+      url.port(urlBase.port)
+      url.addEncodedPathSegments(urlBase.encodedPath.replaceFirst(oldValue="/", newValue=""))
       // Add headers
       for ((name, value) in this.headers) {
         request.addHeader(name, value)
