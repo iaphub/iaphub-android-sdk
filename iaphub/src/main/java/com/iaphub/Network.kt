@@ -53,7 +53,7 @@ internal class Network {
   /**
    * Send a request
    */
-  fun send(type: String, route: String, params: Map<String, Any> = emptyMap(), timeout: Long = 6, retry: Int = 2, completion: (IaphubError?, Map<String, Any>?) -> Unit) {
+  fun send(type: String, route: String, params: Map<String, Any> = emptyMap(), timeout: Long = 6, retry: Int = 2, silentLog: Boolean = false, completion: (IaphubError?, Map<String, Any>?) -> Unit) {
     // Retry request up to 2 times with a delay of 1 second
     Util.retry<Map<String, Any>>(
       times=retry,
@@ -76,7 +76,7 @@ internal class Network {
       },
       completion={ err, data ->
         // Send error if there is one
-        if (err != null) {
+        if (err != null && silentLog != true) {
           err.send()
         }
         // Call completion

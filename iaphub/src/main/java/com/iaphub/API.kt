@@ -113,6 +113,7 @@ internal class API {
       route="/app/${this.user.sdk.appId}/log",
       timeout=2,
       retry=0,
+      silentLog=true,
       params=params,
       completion=completion
     )
