@@ -339,6 +339,7 @@ Iaphub.restore { err: IaphubError? ->
 | platform | `String?` | Platform of the purchase (Possible values: 'ios', 'android') |
 | expirationDate | `Date?` | Subscription expiration date |
 | isSubscriptionRenewable | `Boolean = false` | True if the auto-renewal is enabled |
+| isFamilyShare | `Boolean = false` | True if the subscription is shared by a family member (iOS subscriptions only) |
 | subscriptionRenewalProduct | `String?` | Subscription product id of the next renewal (only defined if different than the current product) |
 | subscriptionRenewalProductSku | `String?` | Subscription product sku of the next renewal |
 | subscriptionState | `String?` | State of the subscription<br>(Possible values: 'active', 'grace_period', 'retry_period', 'paused') |

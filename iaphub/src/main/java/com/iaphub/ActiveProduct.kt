@@ -17,6 +17,8 @@ open class ActiveProduct : Product {
   val expirationDate: Date?
   // If the subscription will auto renew
   val isSubscriptionRenewable: Boolean
+  // If the subscription is shared by a family member (iOS subscriptions only)
+  val isFamilyShare: Boolean
   // Subscription product of the next renewal (only defined if different than the current product)
   val subscriptionRenewalProduct: String?
   // SubscriptionRenewalProduct sku
@@ -48,6 +50,7 @@ open class ActiveProduct : Product {
       )
     }
     this.isSubscriptionRenewable = (data["isSubscriptionRenewable"] as? Boolean) ?: false
+    this.isFamilyShare = (data["isFamilyShare"] as? Boolean) ?: false
     this.subscriptionRenewalProduct = data["subscriptionRenewalProduct"] as? String
     this.subscriptionRenewalProductSku = data["subscriptionRenewalProductSku"] as? String
     this.subscriptionState = data["subscriptionState"] as? String
@@ -84,6 +87,7 @@ open class ActiveProduct : Product {
       "platform" to this.platform as? Any?,
       "expirationDate" to Util.dateToIsoString(this.expirationDate) as? Any?,
       "isSubscriptionRenewable" to this.isSubscriptionRenewable as? Any?,
+      "isFamilyShare" to this.isFamilyShare as? Any?,
       "subscriptionRenewalProduct" to this.subscriptionRenewalProduct as? Any?,
       "subscriptionRenewalProductSku" to this.subscriptionRenewalProductSku as? Any?,
       "subscriptionState" to this.subscriptionState as? Any?,
