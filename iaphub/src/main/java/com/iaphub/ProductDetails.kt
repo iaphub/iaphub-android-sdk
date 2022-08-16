@@ -27,9 +27,9 @@ open class ProductDetails: Parsable {
     this.currency = data["currency"] as? String
     this.localizedPrice = data["localizedPrice"] as? String
     this.subscriptionDuration = data["subscriptionDuration"] as? String
-    this.subscriptionIntroPhases = Util.parseItems(data["subscriptionIntroPhases"], true) { err, item ->
+    this.subscriptionIntroPhases = if (data["subscriptionIntroPhases"] != null) Util.parseItems(data["subscriptionIntroPhases"], true) { err, item ->
       IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.intro_phase_parsing_failed, "\n\n${err.stackTraceToString()}", mapOf("item" to item))
-    }
+    } else null
   }
 
   open fun getData(): Map<String, Any?> {

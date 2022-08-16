@@ -231,6 +231,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
                 data["currency"] = lastPricingPhase.priceCurrencyCode
                 data["localizedPrice"] = lastPricingPhase.formattedPrice
                 data["subscriptionDuration"] = lastPricingPhase.billingPeriod
+                data["subscriptionIntroPhases"] = listOf<Any>()
                 // Add other phases
                 if (phaseList.size > 1) {
                   var otherPhases = phaseList.subList(0, phaseList.lastIndex)
