@@ -622,7 +622,7 @@ internal class User {
         }
       }
       // Use cache data if it comes from the same user id
-      if (jsonMap != null && (jsonMap["id"] as? String == this.id) && (jsonMap["version"] == Config.cacheVersion)) {
+      if (jsonMap != null && (jsonMap["id"] as? String == this.id) && (jsonMap["cacheVersion"] == Config.cacheVersion)) {
         this.fetchDate = Util.dateFromIsoString(jsonMap["fetchDate"]) { err ->
           IaphubError(
             IaphubErrorCode.unexpected,
