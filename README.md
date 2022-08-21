@@ -30,7 +30,7 @@ Implementing In-app purchases in your app should be a piece of cake!<br/>
 implementation 'com.iaphub:iaphub-android-sdk:3.0.+'
 ```
 
-3. Follow the instructions below
+3. Read our complete guide to [set up your app](https://www.iaphub.com/docs/getting-started/set-up-app/).
 
 <br>
 
@@ -51,6 +51,9 @@ class MainApplication: Application()  {
         super.onCreate()
         // Start IAPHUB
         Iaphub.start(
+          // You must provide the app context
+          context=this,
+
           // Required, the app id is available on the settings page of your app
           appId="5e4890f6c61fc971cf46db4d",
           
@@ -87,7 +90,7 @@ They are all optional but `setOnUserUpdateListener` is highly recommended in ord
 
 #### Error
 ```kotlin
-  Iaphub.setOnErrorListener { ->
+  Iaphub.setOnErrorListener { err ->
     // Called when IAPHUB has detected an error
     // It can be interesting to log unexpected errors
   }
@@ -95,7 +98,7 @@ They are all optional but `setOnUserUpdateListener` is highly recommended in ord
 
 #### Receipt
 ```kotlin
-  Iaphub.setOnReceiptListener { ->
+  Iaphub.setOnReceiptListener { err, receipt ->
     // Called after a receipt has been processed
   }
 ```
