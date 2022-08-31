@@ -120,6 +120,15 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:layout_flexGrow="1"
+                android:text="Show subscriptions"
+                android:onClick="@{()->store.showManageSubscriptions()}"
+                android:background="?android:attr/selectableItemBackground"
+                android:textColor="@color/black" />
+
+            <Button
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:layout_flexGrow="1"
                 android:text="Logout"
                 android:onClick="@{()->store.logout()}"
                 android:background="?android:attr/selectableItemBackground"

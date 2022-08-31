@@ -99,6 +99,13 @@ internal class User {
     }
   }
 
+  /**
+   * Show subscriptions manage
+   */
+  fun showManageSubscriptions(completion: (IaphubError?) -> Unit) {
+    this.sdk.store?.showManageSubscriptions(completion)
+  }
+
   /*
    * Refresh user
    */

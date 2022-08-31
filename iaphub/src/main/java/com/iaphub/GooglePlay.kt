@@ -2,6 +2,9 @@ package com.iaphub
 
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import androidx.core.content.ContextCompat.startActivity
 import com.android.billingclient.api.*
 import java.lang.Exception
 import java.util.*
@@ -180,6 +183,33 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
         completion(null)
       }
     }
+  }
+
+  /**
+   * Show subscriptions manage
+   */
+  @Synchronized
+  override fun showManageSubscriptions(completion: (IaphubError?) -> Unit) {
+    val context = this.sdk.context
+    var error: IaphubError? = null
+
+    try {
+      val intent = Intent(
+        Intent.ACTION_VIEW,
+        Uri.parse("https://play.google.com/store/account/subscriptions")
+      )
+      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+      if (context != null) {
+        startActivity(context, intent, null)
+      }
+      else {
+        error = IaphubError(IaphubErrorCode.manage_subscriptions_unavailable, null, message="context not found")
+      }
+    }
+    catch (err: Exception) {
+      error = IaphubError(IaphubErrorCode.manage_subscriptions_unavailable, null, message="$err")
+    }
+    completion(error)
   }
 
   /**

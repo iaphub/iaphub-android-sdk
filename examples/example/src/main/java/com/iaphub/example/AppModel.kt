@@ -80,6 +80,14 @@ class AppModel {
         }
     }
 
+    fun showManageSubscriptions(completion: ((IaphubError?) -> Unit)? = null) {
+        Iaphub.showManageSubscriptions { err ->
+            if (completion != null) {
+                completion(err)
+            }
+        }
+    }
+
     companion object {
         private lateinit var sInstance: AppModel
 

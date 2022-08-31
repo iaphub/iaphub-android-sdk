@@ -30,6 +30,11 @@ internal interface Store {
   fun restore(completion: (IaphubError?) -> Unit)
 
   /**
+   * Show subscriptions manage
+   */
+  fun showManageSubscriptions(completion: (IaphubError?) -> Unit)
+
+  /**
    * Get products
    */
   fun getProductsDetails(skus: List<String>, completion: (IaphubError?, List<ProductDetails>?) -> Unit)

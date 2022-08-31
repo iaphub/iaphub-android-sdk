@@ -23,6 +23,7 @@ internal enum class IaphubErrorCode(override val message: String): IaphubErrorPr
   product_already_purchased("Product already purchased, it is already an active product of the user"),
   user_conflict("The transaction is successful but it belongs to a different user, a restore might be needed"),
   transaction_not_found("Transaction not found, the product sku wasn't in the receipt, the purchase failed"),
+  manage_subscriptions_unavailable("Manage subscriptions unavailable"),
   //code_redemption_unavailable("Presenting the code redemption is not available (only available on iOS 14+)"),
   user_tags_processing("The user is currently posting tags, please wait concurrent requests not allowed"),
   restore_processing("A restore is currently processing"),

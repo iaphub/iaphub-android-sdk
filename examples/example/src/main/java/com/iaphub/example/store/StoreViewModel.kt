@@ -31,6 +31,14 @@ class StoreViewModel(application: Application): AndroidViewModel(application), O
         }
     }
 
+    fun showManageSubscriptions() {
+        this.app.showManageSubscriptions() { err ->
+            if (err != null) {
+                Toast.makeText(this.getApplication(), "Couldn't redirect to the Play Store, please check your subscriptions directly from the Play Store app", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     fun logout() {
         this.navigateToLogin.value = true
         this.app.logout()
