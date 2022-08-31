@@ -306,6 +306,18 @@ Iaphub.restore { err: IaphubError? ->
 }
 ```
 
+## Show manage subscriptions
+Call the ``showManageSubscriptions`` to display the Google Play manage subscriptions page.<br/><br/>
+ℹ️ Optional: You can specify the sku of an active subscription and you'll be redirected to the specified susbcription.<br/>
+
+```swift
+Iaphub.showManageSubscriptions({ (err: IHError?) in
+  if (err != nil) {
+    self.openAlert("Couldn't redirect to the app store, please check your subscriptions directly from the App Store App")
+  }
+})
+```
+
 ## Properties
 
 ### Product

@@ -102,8 +102,8 @@ internal class User {
   /**
    * Show subscriptions manage
    */
-  fun showManageSubscriptions(completion: (IaphubError?) -> Unit) {
-    this.sdk.store?.showManageSubscriptions(completion)
+  fun showManageSubscriptions(sku: String? = null, completion: (IaphubError?) -> Unit) {
+    this.sdk.store?.showManageSubscriptions(sku, completion)
   }
 
   /*

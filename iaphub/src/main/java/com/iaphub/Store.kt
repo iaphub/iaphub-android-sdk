@@ -32,7 +32,7 @@ internal interface Store {
   /**
    * Show subscriptions manage
    */
-  fun showManageSubscriptions(completion: (IaphubError?) -> Unit)
+  fun showManageSubscriptions(sku: String? = null, completion: (IaphubError?) -> Unit)
 
   /**
    * Get products

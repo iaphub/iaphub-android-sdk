@@ -181,14 +181,14 @@ open class SDK: LifecycleObserver
   /**
    * Show manage subscriptions
    */
-  fun showManageSubscriptions(completion: (IaphubError?) -> Unit) {
+  fun showManageSubscriptions(sku: String? = null, completion: (IaphubError?) -> Unit) {
     // Check the sdk is started
     val user = this.user
     if (user == null) {
       return Util.dispatchToMain { completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.start_missing, "showManageSubscriptions failed")) }
     }
     // Launch showManageSubscriptions
-    user.showManageSubscriptions() { err ->
+    user.showManageSubscriptions(sku) { err ->
       Util.dispatchToMain { completion(err) }
     }
   }

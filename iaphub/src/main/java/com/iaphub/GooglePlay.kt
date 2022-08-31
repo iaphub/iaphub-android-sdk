@@ -189,15 +189,17 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
    * Show subscriptions manage
    */
   @Synchronized
-  override fun showManageSubscriptions(completion: (IaphubError?) -> Unit) {
+  override fun showManageSubscriptions(sku: String?, completion: (IaphubError?) -> Unit) {
     val context = this.sdk.context
     var error: IaphubError? = null
 
     try {
-      val intent = Intent(
-        Intent.ACTION_VIEW,
-        Uri.parse("https://play.google.com/store/account/subscriptions")
-      )
+      var url = "https://play.google.com/store/account/subscriptions"
+      val bundleId = context?.packageName
+      if (sku != null && bundleId != null) {
+        url = "${url}?sku=${sku}&package=${bundleId}"
+      }
+      val intent = Intent(Intent.ACTION_VIEW,  Uri.parse(url))
       intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
       if (context != null) {
         startActivity(context, intent, null)

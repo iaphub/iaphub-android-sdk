@@ -81,7 +81,7 @@ class AppModel {
     }
 
     fun showManageSubscriptions(completion: ((IaphubError?) -> Unit)? = null) {
-        Iaphub.showManageSubscriptions { err ->
+        Iaphub.showManageSubscriptions() { err ->
             if (completion != null) {
                 completion(err)
             }
