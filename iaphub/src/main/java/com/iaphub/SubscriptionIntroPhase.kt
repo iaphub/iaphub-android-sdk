@@ -23,7 +23,7 @@ class SubscriptionIntroPhase: Parsable {
     this.currency = data["currency"] as String
     this.localizedPrice = data["localizedPrice"] as String
     this.cycleDuration = data["cycleDuration"] as String
-    this.cycleCount = data["cycleCount"] as Int
+    this.cycleCount = data["cycleCount"] as? Int ?: (data["cycleCount"] as Double).toInt() // Gson converts int to double, we must support both types
     this.payment = data["payment"] as String
   }
 
