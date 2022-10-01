@@ -136,7 +136,7 @@ class TestIntegration {
                 val product = products?.get(0)
 
                 if (product != null) {
-                    if ((product["price"] as? BigDecimal)?.toDouble() == 1.99 && product["currency"] as? String == "USD") {
+                    if (product["price"] as? Double == 1.99 && product["currency"] as? String == "USD") {
                         pricePosted = true
                     }
                 }
