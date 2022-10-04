@@ -517,7 +517,9 @@ internal class User {
       )
     }
     val products = productsForSale + activeProducts
-    val productSkus = products.map { product -> product.sku }
+    // Extract sku and filter empty sku (could happen with an active product from another platform)
+    val productSkus = products.map { product -> product.sku }.filter { sku -> sku != "" }
+    // Get products details
     this.sdk.store?.getProductsDetails(productSkus) { err, productsDetails ->
       // Check err
       if (err != null) {

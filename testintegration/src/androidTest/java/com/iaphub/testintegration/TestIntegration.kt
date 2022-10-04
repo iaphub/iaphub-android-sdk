@@ -459,6 +459,19 @@ class TestIntegration {
                             "isSubscriptionRetryPeriod" to false,
                             "isSubscriptionGracePeriod" to true,
                             "isSubscriptionPaused" to false
+                        ),
+                        mapOf(
+                            "id" to "21781dff9bf02f0c6d32c5a8",
+                            "type" to "renewable_subscription",
+                            "purchase" to "6e517bdd0313c56f11e7faz9",
+                            "purchaseDate" to "2021-04-22T01:34:40.462Z",
+                            "platform" to "ios",
+                            "isFamilyShare" to false,
+                            "expirationDate" to "2023-05-22T01:34:40.462Z",
+                            "subscriptionState" to "active",
+                            "subscriptionPeriodType" to "normal",
+                            "isSubscriptionRenewable" to true,
+                            "isSubscriptionPaused" to false
                         )
                     )
                 )
@@ -470,15 +483,17 @@ class TestIntegration {
         // Get active products
         Iaphub.getActiveProducts { err, products ->
             waiter.assertNull(err)
-            waiter.assertEquals(1, products?.size)
+            waiter.assertEquals(2, products?.size)
             waiter.assertEquals("unknown_subscription", products?.get(0)?.sku)
+            waiter.assertEquals("", products?.get(1)?.sku)
             waiter.assertEquals(0, this.errorCount)
             // Get active products including all states
             Iaphub.getActiveProducts(includeSubscriptionStates=listOf("retry_period", "paused")) { err, products ->
                 waiter.assertNull(err)
-                waiter.assertEquals(2, products?.size)
+                waiter.assertEquals(3, products?.size)
                 waiter.assertEquals("renewable_subscription", products?.get(0)?.sku)
                 waiter.assertEquals("unknown_subscription", products?.get(1)?.sku)
+                waiter.assertEquals("", products?.get(2)?.sku)
                 waiter.assertEquals(0, this.errorCount)
                 waiter.resume()
             }

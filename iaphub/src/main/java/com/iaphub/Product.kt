@@ -16,7 +16,14 @@ open class Product: ProductDetails {
   // Details source
   internal var details: ProductDetails? = null
 
-  constructor(data: Map<String, Any?>): super(data) {
+  constructor(data: Map<String, Any?>): super(data, false) {
+    this.id = data["id"] as String
+    this.type = data["type"] as String
+    this.group = data["group"] as? String
+    this.groupName = data["groupName"] as? String
+  }
+
+  constructor(data: Map<String, Any?>, allowEmptySku: Boolean = false): super(data, allowEmptySku) {
     this.id = data["id"] as String
     this.type = data["type"] as String
     this.group = data["group"] as? String

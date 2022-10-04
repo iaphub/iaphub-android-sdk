@@ -19,8 +19,8 @@ open class ProductDetails: Parsable {
   // Subscription intro phases
   var subscriptionIntroPhases: List<SubscriptionIntroPhase>? = null
 
-  constructor(data: Map<String, Any?>): super(data) {
-    this.sku = data["sku"] as String
+  constructor(data: Map<String, Any?>, allowEmptySku: Boolean = false): super(data) {
+    this.sku = if (allowEmptySku) data["sku"] as? String ?: "" else data["sku"] as String
     this.localizedTitle = data["localizedTitle"] as? String
     this.localizedDescription = data["localizedDescription"] as? String
     this.price = data["price"] as? Double

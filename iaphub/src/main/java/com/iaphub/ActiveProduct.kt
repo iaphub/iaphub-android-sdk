@@ -28,7 +28,7 @@ open class ActiveProduct : Product {
   // Subscription period type (Possible values: 'normal', 'trial', 'intro')
   val subscriptionPeriodType: String?
 
-  constructor(data: Map<String, Any?>): super(data) {
+  constructor(data: Map<String, Any?>): super(data, true) {
     this.purchase = data["purchase"] as? String
     this.purchaseDate = Util.dateFromIsoString(data["purchaseDate"]) { exception ->
       IaphubError(
