@@ -8,7 +8,7 @@ internal object Config {
   // SDK platform
   val sdk = "android"
   // SDK version
-  val sdkVersion = "3.1.2"
+  val sdkVersion = "3.1.3"
   // Cache version (Increment it when cache needs to be reset because of a format change)
   val cacheVersion = "1"
 }
