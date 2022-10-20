@@ -19,6 +19,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
   private var onDeferredSubscriptionReplace: ((purchaseToken: String, newSku: String, (IaphubError?, ReceiptTransaction?) -> Unit) -> Unit)? = null
   private var billing: BillingClient? = null
   private var buyRequest: BuyRequest? = null
+  private var restoredPurchases: List<Purchase>? = null
   private var purchaseQueue: Queue<Purchase>? = null
   private var lastReceipt: Receipt? = null
   private var cachedSkusDetails: MutableMap<String, com.android.billingclient.api.ProductDetails> = mutableMapOf()
@@ -177,8 +178,10 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
         return@getPurchases completion(err)
       }
       this.purchaseQueue?.pause()
+      this.restoredPurchases = purchases
       purchases.forEach { purchase -> this.purchaseQueue?.add(purchase)}
       this.purchaseQueue?.resume() { ->
+        this.restoredPurchases = null
         this.isRestoring = false
         completion(null)
       }
@@ -510,6 +513,9 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
     var context = "refresh"
     if (this.buyRequest?.sku == sku) {
       context = "purchase"
+    }
+    else if (this.restoredPurchases?.contains(purchase) == true) {
+      context = "restore"
     }
     // Create receipt
     val receipt = Receipt(token=purchaseToken, sku=sku, context=context)

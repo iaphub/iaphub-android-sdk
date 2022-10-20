@@ -330,10 +330,11 @@ class TestIntegration {
     fun test08_restore() {
         val waiter = Waiter()
         // Mock request posting receipt
-        Iaphub.testing.mockNetworkRequest() { _, route, _ ->
+        Iaphub.testing.mockNetworkRequest() { _, route, params ->
             if (route.contains("/receipt")) {
-                val emptyList: List<Any> = emptyList()
+                waiter.assertEquals("restore", params["context"])
 
+                val emptyList: List<Any> = emptyList()
                 return@mockNetworkRequest mapOf(
                     "status" to "success",
                     "oldTransactions" to emptyList,
