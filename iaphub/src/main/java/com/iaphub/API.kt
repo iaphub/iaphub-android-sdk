@@ -46,11 +46,11 @@ internal class API {
   /*
    * Login
    */
-  fun login(userId: String, completion: (IaphubError?) -> Unit) {
+  fun login(currentUserId: String, newUserId: String, completion: (IaphubError?) -> Unit) {
     this.network.send(
       type="POST",
-      route="/app/${this.user.sdk.appId}/user/${this.user.id}/login",
-      params=mapOf("userId" to userId),
+      route="/app/${this.user.sdk.appId}/user/${currentUserId}/login",
+      params=mapOf("userId" to newUserId),
       completion={ err, _ -> completion(err)}
     )
   }

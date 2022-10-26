@@ -293,7 +293,8 @@ internal class User {
       return completion(null)
     }
     // Detect if we should call the API to update the id
-    val shouldCallApi = this.isAnonymous() && this.fetchDate != null
+    val shouldCallApi = this.isAnonymous()
+    val currentUserId = this.id
     // Update id
     this.id = userId
     // Reset user
@@ -301,16 +302,8 @@ internal class User {
     // No need to call API if not necessary
     if (!shouldCallApi) return completion(null)
     // Call API
-    this.api.login(userId) { err ->
-      // Check for error
-      if (err != null) {
-        // Ignore error if user not found or already authenticated
-        if (arrayOf("user_not_found", "user_authenticated").contains(err.code)) {
-          return@login completion(null)
-        }
-        return@login completion(err)
-      }
-      // Call completion
+    this.api.login(currentUserId, userId) { _ ->
+      // Ignore error and call completion (if the login couldn't be called any reason and the purchases were not transferred the user can still do a restore)
       completion(null)
     }
   }

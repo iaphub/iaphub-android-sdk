@@ -166,8 +166,24 @@ class TestIntegration {
     }
 
     @Test
-    fun test04_login() {
+    fun test04_getUserId() {
         val waiter = Waiter()
+        val userId = Iaphub.getUserId()
+
+        waiter.assertEquals("a", userId?.split(":")?.get(0))
+    }
+
+    @Test
+    fun test05_login() {
+        val waiter = Waiter()
+
+        // Mock request posting receipt
+        Iaphub.testing.mockNetworkRequest() { type, route, params ->
+            if (route.contains("/login")) {
+                waiter.assertEquals("42", params["userId"])
+            }
+            return@mockNetworkRequest null
+        }
         // Login
         Iaphub.login("42") { err ->
             waiter.assertNull(err)
@@ -179,7 +195,7 @@ class TestIntegration {
     }
 
     @Test
-    fun test05_buy() {
+    fun test06_buy() {
         val waiter = Waiter()
         // Mock request posting receipt
         Iaphub.testing.mockNetworkRequest() { type, route, _ ->
@@ -217,7 +233,7 @@ class TestIntegration {
     }
 
     @Test
-    fun test06_buy_user_conflict() {
+    fun test07_buy_user_conflict() {
         val waiter = Waiter()
         Iaphub.testing.forceUserRefresh()
         // Mock request posting receipt
@@ -272,7 +288,7 @@ class TestIntegration {
     }
 
     @Test
-    fun test07_detectUserUpdate() {
+    fun test08_detectUserUpdate() {
         val waiter = Waiter()
         val self = this
         // Mock request fetching user
@@ -327,7 +343,7 @@ class TestIntegration {
     }
 
     @Test
-    fun test08_restore() {
+    fun test09_restore() {
         val waiter = Waiter()
         // Mock request posting receipt
         Iaphub.testing.mockNetworkRequest() { _, route, params ->
@@ -375,7 +391,7 @@ class TestIntegration {
     }
 
     @Test
-    fun test09_setTags() {
+    fun test10_setTags() {
         val waiter = Waiter()
         // Set tags
         Iaphub.setUserTags(mapOf("group" to "1")) { err ->
@@ -388,7 +404,7 @@ class TestIntegration {
     }
 
     @Test
-    fun test10_deleteTags() {
+    fun test11_deleteTags() {
         val waiter = Waiter()
         // Set tags
         Iaphub.setUserTags(mapOf("group" to "")) { err ->
@@ -401,7 +417,7 @@ class TestIntegration {
     }
 
     @Test
-    fun test11_setDeviceParams() {
+    fun test12_setDeviceParams() {
         val waiter = Waiter()
         // Set tags
         Iaphub.setDeviceParams(mapOf("appVersion" to "2.0.0"))
@@ -419,7 +435,7 @@ class TestIntegration {
     }
 
     @Test
-    fun test12_getActiveProducts() {
+    fun test13_getActiveProducts() {
         val waiter = Waiter()
         // Mock request fetching user
         Iaphub.testing.mockNetworkRequest() { type, route, _ ->
@@ -504,7 +520,7 @@ class TestIntegration {
     }
 
     @Test
-    fun test13_concurrentFetch() {
+    fun test14_concurrentFetch() {
         val waiter = Waiter()
         var callbackCount = 0
         var requestCount = 0
