@@ -57,7 +57,7 @@ open class SDK: LifecycleObserver
       this.sdkVersion = Config.sdkVersion + "/" + sdkVersion;
     }
     // Initialize user
-    if (this.user == null || (oldAppId != appId) || (userId != null && this.user?.id != userId)) {
+    if (this.user == null || (oldAppId != appId) || (this.user?.id != userId)) {
       this.user = User(id=userId, sdk=this, onUserUpdate={ this.onUserUpdate() })
     }
     // Otherwise reset user cache

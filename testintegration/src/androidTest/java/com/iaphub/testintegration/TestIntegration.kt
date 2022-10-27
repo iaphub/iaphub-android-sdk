@@ -13,6 +13,8 @@ import java.math.BigDecimal
 import java.util.*
 import kotlin.concurrent.timerTask
 
+var iaphubStarted = false
+
 @RunWith(AndroidJUnit4::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 class TestIntegration {
@@ -26,7 +28,10 @@ class TestIntegration {
     fun setup() {
         this.scenario.onActivity {
             // Start IAPHUB
-            Iaphub.start(context=it, appId="61718bfd9bf07f0c7d2357d1", apiKey="Usaw9viZNrnYdNSwPIFFo7iUxyjK23K3")
+            if (iaphubStarted == false) {
+                iaphubStarted = true
+                Iaphub.start(context=it, appId="61718bfd9bf07f0c7d2357d1",  apiKey="Usaw9viZNrnYdNSwPIFFo7iUxyjK23K3")
+            }
             // Add listeners
             Iaphub.setOnErrorListener { err ->
                 Log.d("IAPHUB", "-> Error: ${err.message}")
