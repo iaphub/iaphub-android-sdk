@@ -1,33 +1,60 @@
 package com.iaphub
 
 import android.app.Activity
-import android.util.Log
 import java.lang.Exception
 import java.util.*
 
 internal class User {
 
-  internal val sdk: SDK
-  internal val api: API
-  internal val onUserUpdate: () -> Unit
-
+  // User id
   internal var id: String
+  // Iaphub user id
   internal var iaphubId: String? = null
+  // Products for sale of the user
   internal var productsForSale: List<Product> = listOf()
+  // Active products of the user
   internal var activeProducts: List<ActiveProduct> = listOf()
+  // Pricings
   internal var pricings: List<ProductPricing> = listOf()
+  // Latest user fetch date
   internal var fetchDate: Date? = null
-  internal var receiptPostDate: Date? = null
-  internal var updateDate: Date? = null
-  internal var fetchRequests: MutableList<(IaphubError?, Boolean) -> Unit> = mutableListOf()
-  internal var isFetching: Boolean = false
-  internal var isInitialized: Boolean = false
-  internal var needsFetch: Boolean = false
-  internal var isPostingTags: Boolean = false
 
-  constructor(id: String?, sdk: SDK, onUserUpdate: () -> Unit) {
+
+  // SDK
+  internal val sdk: SDK
+  // API
+  internal val api: API
+  // Event triggered when the user is updated
+  internal val onUserUpdate: (() -> Unit)?
+  // Event triggered on a deferred purchase
+  internal val onDeferredPurchase: ((ReceiptTransaction) -> Unit)?
+  // Restored deferred purchases (recorded during restore instead of calling onDeferredPurchase event)
+  internal var restoredDeferredPurchases: MutableList<ReceiptTransaction> = mutableListOf()
+  // Fetch requests
+  internal var fetchRequests: MutableList<(IaphubError?, Boolean) -> Unit> = mutableListOf()
+  // Indicates if the user is currently being fetched
+  internal var isFetching: Boolean = false
+  // Indicates the user is posting tags
+  internal var isPostingTags: Boolean = false
+  // Indicates the user is restoring purchases
+  internal var isRestoring: Boolean = false
+  // Indicates the user is initialized
+  internal var isInitialized: Boolean = false
+  // Indicates if the user needs to be fetched
+  internal var needsFetch: Boolean = false
+  // Latest receipt post date
+  internal var receiptPostDate: Date? = null
+  // Latest date an update has been made
+  internal var updateDate: Date? = null
+  // If the deferred purchase events should be consumed
+  internal var enableDeferredPurchaseListener: Boolean = true
+
+
+  constructor(id: String?, sdk: SDK, enableDeferredPurchaseListener: Boolean = true, onUserUpdate: (() -> Unit)? = null, onDeferredPurchase: ((ReceiptTransaction) -> Unit)? = null) {
     this.sdk = sdk
+    this.enableDeferredPurchaseListener = enableDeferredPurchaseListener
     this.onUserUpdate = onUserUpdate
+    this.onDeferredPurchase = onDeferredPurchase
     // If id defined use it
     if (id != null) {
       this.id = id
@@ -87,14 +114,35 @@ internal class User {
   /**
    * Restore products
    */
-  fun restore(completion: (IaphubError?) -> Unit) {
+  fun restore(completion: (IaphubError?, RestoreResponse?) -> Unit) {
+    // Reinitialize restoredDeferredPurchases list
+    this.restoredDeferredPurchases = mutableListOf()
+    // Mark as restoring
+    this.isRestoring = true
     // Launch restore
     this.sdk.store?.restore() { err ->
       // Update updateDate
       this.updateDate = Date()
+      // Save old active products
+      val oldActiveProducts = this.activeProducts
       // Refresh user
       this.refresh(interval = 0, force = true) { _, _, _ ->
-        completion(err)
+        val newPurchases = this.restoredDeferredPurchases
+        val transferredActiveProducts = this.activeProducts.filter { newActiveProduct ->
+          val isInOldActiveProducts = (oldActiveProducts.find { oldActiveProduct -> oldActiveProduct.sku == newActiveProduct.sku }) != null
+          val isInNewPurchases = (newPurchases.find { newPurchase -> newPurchase.sku == newActiveProduct.sku }) != null
+
+          return@filter !isInOldActiveProducts && !isInNewPurchases
+        }
+        // Call completion
+        if (err == null || (newPurchases.size > 0 || transferredActiveProducts.size > 0)) {
+          completion(null, RestoreResponse(newPurchases, transferredActiveProducts))
+        }
+        else {
+          completion(err, null)
+        }
+        // Mark restore as done
+        this.isRestoring = false
       }
     }
   }
@@ -433,7 +481,7 @@ internal class User {
         // Only mark as updated for the first request
         if (isUpdated) {
           isUpdated = false
-          this.onUserUpdate()
+          this.onUserUpdate?.let { it() }
         }
       }
     }
@@ -509,9 +557,19 @@ internal class User {
         params=mapOf("item" to item)
       )
     }
+    val events = Util.parseItems<Event>(data["events"], allowNull=true) { err, item ->
+      IaphubError(
+        IaphubErrorCode.unexpected,
+        IaphubUnexpectedErrorCode.update_item_parsing_failed,
+        message="event\n\n${err.stackTraceToString()}",
+        params=mapOf("item" to item)
+      )
+    }
     val products = productsForSale + activeProducts
     // Extract sku and filter empty sku (could happen with an active product from another platform)
-    val productSkus = products.map { product -> product.sku }.filter { sku -> sku != "" }
+    val productSkus = (products.map { product -> product.sku } + events.map { event -> event.transaction.sku })
+      .filter { sku -> sku != "" }
+      .distinct()
     // Get products details
     this.sdk.store?.getProductsDetails(productSkus) { err, productsDetails ->
       // Check err
@@ -523,6 +581,12 @@ internal class User {
         val product = products.find { product -> product.sku == productDetail.sku }
 
         product?.setDetails(productDetail)
+        // Same for events
+        events.forEach { event ->
+          if (event.transaction.sku == productDetail.sku) {
+            event.transaction.setDetails(productDetail)
+          }
+        }
       }
       // Filter products for sale with no details
       this.productsForSale = productsForSale.filter { product ->
@@ -537,8 +601,26 @@ internal class User {
       this.iaphubId = data["id"] as? String
       // Mark needsFetch as false
       this.needsFetch = false
+      // Process events
+      this.processEvents(events)
       // Call completion
       completion(null)
+    }
+  }
+
+  /*
+   * Process events
+   */
+  private fun processEvents(events: List<Event>) {
+    events.forEach { event ->
+      if (event.type == "purchase" && event.tags.contains("deferred")) {
+        if (this.isRestoring) {
+          this.restoredDeferredPurchases.add(event.transaction)
+        }
+        else {
+          this.onDeferredPurchase?.let { it(event.transaction) }
+        }
+      }
     }
   }
 

@@ -27,6 +27,7 @@ open class SDK: LifecycleObserver
   internal var deviceParams: Map<String, String> = mapOf()
 
   internal var onUserUpdateListener: (() -> Unit)? = null
+  internal var onDeferredPurchaseListener: ((ReceiptTransaction) -> Unit)? = null
   internal var onErrorListener: ((IaphubError) -> Unit)? = null
   internal var onReceiptListener: ((IaphubError?, Receipt?) -> Unit)? = null
 
@@ -37,7 +38,7 @@ open class SDK: LifecycleObserver
    * Start IAPHUB
    */
   @Synchronized
-  fun start(context: Context, appId: String, apiKey: String, userId: String? = null, allowAnonymousPurchase: Boolean = false, environment: String = "production", sdk: String = "", sdkVersion: String = "") {
+  fun start(context: Context, appId: String, apiKey: String, userId: String? = null, allowAnonymousPurchase: Boolean = false, enableDeferredPurchaseListener: Boolean = true, environment: String = "production", sdk: String = "", sdkVersion: String = "") {
     this.context = context.applicationContext
     this.appId = appId
     this.apiKey = apiKey
@@ -57,8 +58,14 @@ open class SDK: LifecycleObserver
       this.sdkVersion = Config.sdkVersion + "/" + sdkVersion;
     }
     // Initialize user
-    if (this.user == null || (oldAppId != appId) || (this.user?.id != userId)) {
-      this.user = User(id=userId, sdk=this, onUserUpdate={ this.onUserUpdate() })
+    if (this.user == null || (oldAppId != appId) || (this.user?.id != userId) || (this.user?.enableDeferredPurchaseListener != enableDeferredPurchaseListener)) {
+      this.user = User(
+        id=userId,
+        sdk=this,
+        enableDeferredPurchaseListener=enableDeferredPurchaseListener,
+        onUserUpdate={ this.onUserUpdate() },
+        onDeferredPurchase={ transaction -> this.onDeferredPurchase(transaction) }
+      )
     }
     // Otherwise reset user cache
     else {
@@ -166,15 +173,15 @@ open class SDK: LifecycleObserver
   /**
    * Restore
    */
-  fun restore(completion: (IaphubError?) -> Unit) {
+  fun restore(completion: (IaphubError?, RestoreResponse?) -> Unit) {
     // Check the sdk is started
     val user = this.user
     if (user == null) {
-      return Util.dispatchToMain { completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.start_missing, "restore failed")) }
+      return Util.dispatchToMain { completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.start_missing, "restore failed"), null) }
     }
     // Launch restore
-    user.restore() { err ->
-      Util.dispatchToMain { completion(err) }
+    user.restore() { err, response ->
+      Util.dispatchToMain { completion(err, response) }
     }
   }
 
@@ -259,6 +266,13 @@ open class SDK: LifecycleObserver
     this.onReceiptListener = listener
   }
 
+  /**
+   * Set onDeferredPurchase listener
+   */
+  fun setOnDeferredPurchaseListener(listener: (ReceiptTransaction) -> Unit) {
+    this.onDeferredPurchaseListener = listener
+  }
+
   /************************************* PRIVATE ***********************************/
 
   /**
@@ -266,6 +280,13 @@ open class SDK: LifecycleObserver
    */
   private fun onUserUpdate() {
     Util.dispatchToMain { this.onUserUpdateListener?.let { it() } }
+  }
+
+  /**
+   * Triggered when there is an user update
+   */
+  private fun onDeferredPurchase(transaction: ReceiptTransaction) {
+    Util.dispatchToMain { this.onDeferredPurchaseListener?.let { it(transaction) } }
   }
 
   /**

@@ -88,6 +88,14 @@ They are all optional but `setOnUserUpdateListener` is highly recommended in ord
   }
 ```
 
+#### Deferred purchase
+```kotlin
+  Iaphub.setOnDeferredPurchaseListener { ->
+    // Called when a deferred purchase has been processed
+    // A deferred purchase is a purchase processed 'outside' of the buy method 
+  }
+```
+
 #### Error
 ```kotlin
   Iaphub.setOnErrorListener { err ->
@@ -309,7 +317,7 @@ Call the ``restore`` method to restore the user purchases<br/><br/>
 ℹ️ You must display a button somewhere in your app in order to allow the user to restore its purchases.<br/>
 
 ```kotlin
-Iaphub.restore { err: IaphubError? ->
+Iaphub.restore { err: IaphubError?, response: RestoreResponse? ->
   // On a success err should be null
 }
 ```
@@ -374,6 +382,12 @@ Iaphub.showManageSubscriptions({ (err: IHError?) in
 | :------------ |:---------------:| :-----|
 | webhookStatus | `String?` | Webhook status (Possible values: 'success', 'failed', 'disabled') |
 | user | `String?` | User id (From IAPHUB) |
+
+### RestoreResponse
+| Prop  | Type | Description |
+| :------------ |:---------------:| :-----|
+| newPurchases | `[ReceiptTransaction]?` | New purchases processed during the restore |
+| transferredActiveProducts | `[ActiveProduct]?` | Active products transferred (from another user) during the restore |
 
 ### IaphubError
 | Prop  | Type | Description |

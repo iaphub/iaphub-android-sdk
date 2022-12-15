@@ -1,5 +1,6 @@
 package com.iaphub.testintegration
 
+import android.content.Context
 import org.junit.runner.RunWith
 import org.junit.*
 import android.util.Log
@@ -8,12 +9,12 @@ import androidx.test.runner.AndroidJUnit4
 import com.iaphub.*
 import net.jodah.concurrentunit.Waiter
 import org.junit.runners.MethodSorters
-import java.math.BigDecimal
 
 import java.util.*
 import kotlin.concurrent.timerTask
 
 var iaphubStarted = false
+var context: Context? = null
 
 @RunWith(AndroidJUnit4::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
@@ -23,6 +24,7 @@ class TestIntegration {
     var errorCount = 0
     var userUpdateCount = 0
     var processReceiptCount = 0
+    var deferredPurchases: MutableList<ReceiptTransaction> = mutableListOf()
 
     @Before
     fun setup() {
@@ -30,6 +32,7 @@ class TestIntegration {
             // Start IAPHUB
             if (iaphubStarted == false) {
                 iaphubStarted = true
+                context = it
                 Iaphub.start(context=it, appId="61718bfd9bf07f0c7d2357d1",  apiKey="Usaw9viZNrnYdNSwPIFFo7iUxyjK23K3")
             }
             // Add listeners
@@ -44,6 +47,10 @@ class TestIntegration {
             Iaphub.setOnReceiptListener() { err, receipt->
                 Log.d("IAPHUB", "-> Process receipt")
                 this.processReceiptCount++
+            }
+            Iaphub.setOnDeferredPurchaseListener { transaction ->
+                Log.d("IAPHUB", "-> Process deferred purchase")
+                this.deferredPurchases.add(transaction)
             }
             // Set testing options
             Iaphub.testing.storeLibraryMock=true
@@ -85,6 +92,7 @@ class TestIntegration {
         Iaphub.testing.storeReadyTimeout = 2000
         // Callback function
         val callback = fun (err: IaphubError?, products: List<Product>?) {
+            Log.d("IAPHUB", "-> Received callback")
             waiter.assertEquals("billing_unavailable", err?.code)
             callbackCount++
             if (callbackCount == 3) {
@@ -381,14 +389,14 @@ class TestIntegration {
             return@mockNetworkRequest null
         }
         // Run restore
-        Iaphub.restore { err ->
+        Iaphub.restore { err, _ ->
             waiter.assertNull(err)
             waiter.assertEquals(1, this.processReceiptCount)
             waiter.assertEquals(1, this.errorCount)
             waiter.resume()
         }
         // A concurrent restore request should return an error
-        Iaphub.restore { err ->
+        Iaphub.restore { err, _ ->
             waiter.assertEquals("restore_processing", err?.code)
         }
         // Wait waiter
@@ -556,6 +564,102 @@ class TestIntegration {
         Iaphub.getActiveProducts(completion=callback)
         Iaphub.getProductsForSale(completion=callback)
         Iaphub.getProductsForSale(completion=callback)
+        // Wait waiter
+        waiter.await(5000)
+    }
+
+    @Test
+    fun test15_consumeDeferredPurchase() {
+        val waiter = Waiter()
+        var requestCount = 0
+
+        // Mock request fetching user
+        Iaphub.testing.mockNetworkRequest() { type, route, params ->
+            if (type == "GET" && route.contains("/user")) {
+                val emptyList: List<Any> = emptyList()
+                requestCount++
+                waiter.assertEquals(null, params["deferredPurchase"] as? String)
+                return@mockNetworkRequest mapOf(
+                    "productsForSale" to emptyList,
+                    "activeProducts" to emptyList
+                )
+            }
+            return@mockNetworkRequest null
+        }
+        // Force refresh
+        Iaphub.testing.forceUserRefresh()
+        // Get active products
+        Iaphub.getActiveProducts { _, _ ->
+            waiter.assertEquals(1, requestCount)
+            // Disable enableDeferredPurchaseListener option
+            Iaphub.start(context=context as Context, appId="61718bfd9bf07f0c7d2357d1",  apiKey="Usaw9viZNrnYdNSwPIFFo7iUxyjK23K3", enableDeferredPurchaseListener=false)
+            // Mock request fetching user
+            Iaphub.testing.mockNetworkRequest() { type, route, params ->
+                if (type == "GET" && route.contains("/user")) {
+                    val emptyList: List<Any> = emptyList()
+                    requestCount++
+                    waiter.assertEquals("false", params["deferredPurchase"] as? String)
+                    return@mockNetworkRequest mapOf(
+                        "productsForSale" to emptyList,
+                        "activeProducts" to emptyList
+                    )
+                }
+                return@mockNetworkRequest null
+            }
+            // Refresh user
+            Iaphub.testing.forceUserRefresh()
+            Iaphub.getActiveProducts { _, _ ->
+                waiter.assertEquals(2, requestCount)
+                waiter.resume()
+            }
+        }
+        // Wait waiter
+        waiter.await(5000)
+    }
+
+    @Test
+    fun test16_getDeferredPurchaseEvent() {
+        var self = this
+        val waiter = Waiter()
+        var requestCount = 0
+
+        // Mock request fetching user
+        Iaphub.testing.mockNetworkRequest() { type, route, params ->
+            if (type == "GET" && route.contains("/user")) {
+                val emptyList: List<Any> = emptyList()
+                requestCount++
+                return@mockNetworkRequest mapOf(
+                    "productsForSale" to emptyList,
+                    "activeProducts" to emptyList,
+                    "events" to listOf(
+                        mapOf(
+                            "type" to "purchase",
+                            "tags" to listOf("deferred"),
+                            "transaction" to mapOf(
+                                "id" to "21781dff9bf02f0c6d32c5a7",
+                                "type" to "consumable",
+                                "purchase" to "6e517bdd0313c56f11e7faz8",
+                                "purchaseDate" to "2022-06-22T01:34:40.462Z",
+                                "platform" to "android",
+                                "isFamilyShare" to false,
+                                "user" to "21781dff9bf02f0c6d32c4b2",
+                                "webhookStatus" to "success"
+                            )
+                        )
+                    )
+                )
+            }
+            return@mockNetworkRequest null
+        }
+        // Force refresh
+        Iaphub.testing.forceUserRefresh()
+        // Get active products
+        Iaphub.getActiveProducts { _, _ ->
+            waiter.assertEquals(1, requestCount)
+            waiter.assertEquals(1, self.deferredPurchases.size)
+            waiter.assertEquals("21781dff9bf02f0c6d32c5a7", self.deferredPurchases[0].id)
+            waiter.resume()
+        }
         // Wait waiter
         waiter.await(5000)
     }

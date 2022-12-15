@@ -35,6 +35,10 @@ internal class API {
     for ((key, value) in this.user.sdk.deviceParams) {
       params.put("params.${key}", value)
     }
+    // Add deferredPurchase parameter
+    if (!this.user.enableDeferredPurchaseListener) {
+      params.put("deferredPurchase", "false")
+    }
     this.network.send(
       type="GET",
       route="/app/${this.user.sdk.appId}/user/${this.user.id}",

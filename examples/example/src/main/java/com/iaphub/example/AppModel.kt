@@ -68,7 +68,7 @@ class AppModel {
     fun restoreProducts(completion: ((IaphubError?) -> Unit)? = null) {
         if (this.restoreLoading.value == true) return
         this.restoreLoading.value = true
-        Iaphub.restore { err ->
+        Iaphub.restore { err, _ ->
             this.restoreLoading.value = false
             if (err != null) {
                 if (completion != null) {
