@@ -227,10 +227,10 @@ If you're looking to display a message when a user has a subscription on a `retr
   }
 ```
 
-## Get products
+## Get all products
 A method `getProducts` is also available in order to get the products for sale and active products in one call.
-```swift
-  Iaphub.getProducts() { err: IaphubError?, productsForSale: List<Product>?, activeProducts: List<ActiveProduct>? ->
+```kotlin
+  Iaphub.getProducts() { err: IaphubError?, products: Products? ->
     // On a success err should be null
   }
 ```
@@ -382,6 +382,12 @@ Iaphub.showManageSubscriptions({ (err: IHError?) in
 | :------------ |:---------------:| :-----|
 | webhookStatus | `String?` | Webhook status (Possible values: 'success', 'failed', 'disabled') |
 | user | `String?` | User id (From IAPHUB) |
+
+### Products
+| Prop  | Type | Description |
+| :------------ |:---------------:| :-----|
+| productsForSale | `[Product]` | Products for sale |
+| activeProducts | `[ActiveProduct]` | Active products |
 
 ### RestoreResponse
 | Prop  | Type | Description |

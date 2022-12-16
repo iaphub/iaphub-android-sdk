@@ -276,14 +276,14 @@ internal class User {
   /*
    * Get products (active and for sale)
    */
-  fun getProducts(includeSubscriptionStates: List<String> = listOf(), completion: (IaphubError?, List<Product>?, List<ActiveProduct>?) -> Unit) {
+  fun getProducts(includeSubscriptionStates: List<String> = listOf(), completion: (IaphubError?, Products?) -> Unit) {
     this.getActiveProducts(includeSubscriptionStates) { err, activeProducts ->
       // Check if there is an error
-      if (err != null) {
-        return@getActiveProducts completion(err, null, null)
+      if (err != null || activeProducts == null) {
+        return@getActiveProducts completion(err, null)
       }
       // Otherwise return the products
-      completion(null, this.productsForSale, activeProducts)
+      completion(null, Products(activeProducts, this.productsForSale))
     }
   }
 

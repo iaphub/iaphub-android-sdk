@@ -233,15 +233,15 @@ open class SDK: LifecycleObserver
   /**
    * Get products (active and for sale)
    */
-  fun getProducts(includeSubscriptionStates: List<String> = listOf(), completion: (IaphubError?, List<Product>?, List<ActiveProduct>?) -> Unit) {
+  fun getProducts(includeSubscriptionStates: List<String> = listOf(), completion: (IaphubError?, Products?) -> Unit) {
     // Check the sdk is started
     val user = this.user
     if (user == null) {
-      return Util.dispatchToMain { completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.start_missing, "getProducts failed"), null, null) }
+      return Util.dispatchToMain { completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.start_missing, "getProducts failed"), null) }
     }
     // Return products
-    user.getProducts(includeSubscriptionStates) { err, productsForSale, activeProducts ->
-      Util.dispatchToMain { completion(err, productsForSale, activeProducts) }
+    user.getProducts(includeSubscriptionStates) { err, products ->
+      Util.dispatchToMain { completion(err, products) }
     }
   }
 

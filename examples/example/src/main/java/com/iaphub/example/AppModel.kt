@@ -51,12 +51,10 @@ class AppModel {
     fun refreshProducts(completion: ((IaphubError?) -> Unit)? = null) {
         if (this.productsLoading.value == true) return
         this.productsLoading.value = true
-        Iaphub.getProducts() { err, productsForSale, activeProducts ->
-            if (productsForSale != null) {
-                this.productsForSale.value = productsForSale
-            }
-            if (activeProducts != null) {
-                this.activeProducts.value = activeProducts
+        Iaphub.getProducts() { err, products ->
+            if (products != null) {
+                this.productsForSale.value = products.productsForSale
+                this.activeProducts.value = products.activeProducts
             }
             this.productsLoading.value = false
             if (completion != null) {
