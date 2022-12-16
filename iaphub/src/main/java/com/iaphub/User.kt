@@ -119,12 +119,12 @@ internal class User {
     this.restoredDeferredPurchases = mutableListOf()
     // Mark as restoring
     this.isRestoring = true
+    // Save old active products
+    val oldActiveProducts = this.activeProducts
     // Launch restore
     this.sdk.store?.restore() { err ->
       // Update updateDate
       this.updateDate = Date()
-      // Save old active products
-      val oldActiveProducts = this.activeProducts
       // Refresh user
       this.refresh(interval = 0, force = true) { _, _, _ ->
         val newPurchases = this.restoredDeferredPurchases
