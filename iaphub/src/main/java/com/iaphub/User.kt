@@ -489,14 +489,29 @@ internal class User {
     this.getCacheData {
       // Get data from API
       this.api.getUser { err, data ->
+        var userData = data
         // Check error
-        if (err != null || data == null) {
-          return@getUser completeFetchRequest(err)
+        if (err != null) {
+          // Clear products if the platform is disabled
+          if (err.code == "server_error" && err.subcode == "platform_disabled") {
+            userData = mapOf(
+              "productsForSale" to emptyList<Any>(),
+              "activeProducts" to emptyList<Any>()
+            )
+          }
+          // Otherwise return an error
+          else {
+            return@getUser completeFetchRequest(err)
+          }
+        }
+        // Check data
+        if (userData == null) {
+          return@getUser completeFetchRequest(IaphubError(IaphubErrorCode.unexpected))
         }
         // Save products dictionary
         val oldData = this.getData(productsOnly = true)
         // Update data
-        this.update(data) { err ->
+        this.update(userData) { err ->
           // Check error
           if (err != null) {
             return@update completeFetchRequest(err)
