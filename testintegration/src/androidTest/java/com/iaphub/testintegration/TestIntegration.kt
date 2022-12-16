@@ -466,6 +466,8 @@ class TestIntegration {
                             "purchaseDate" to "2021-05-22T01:34:40.462Z",
                             "platform" to "android",
                             "isFamilyShare" to false,
+                            "isPromo" to false,
+                            "originalPurchase" to "2e517bdd0613c16f11e7fab2",
                             "expirationDate" to "2023-05-22T01:34:40.462Z",
                             "subscriptionState" to "retry_period",
                             "subscriptionPeriodType" to "normal",
@@ -482,6 +484,8 @@ class TestIntegration {
                             "purchaseDate" to "2021-06-22T01:34:40.462Z",
                             "platform" to "android",
                             "isFamilyShare" to false,
+                            "isPromo" to false,
+                            "originalPurchase" to "2e517bdd0613c16f21e5fab1",
                             "expirationDate" to "2023-06-22T01:34:40.462Z",
                             "subscriptionState" to "active",
                             "subscriptionPeriodType" to "grace_period",
@@ -497,6 +501,9 @@ class TestIntegration {
                             "purchaseDate" to "2021-04-22T01:34:40.462Z",
                             "platform" to "ios",
                             "isFamilyShare" to false,
+                            "isPromo" to true,
+                            "promoCode" to "SPRING",
+                            "originalPurchase" to "6e517bdd0313c56f11e7faz9",
                             "expirationDate" to "2023-05-22T01:34:40.462Z",
                             "subscriptionState" to "active",
                             "subscriptionPeriodType" to "normal",
@@ -515,7 +522,10 @@ class TestIntegration {
             waiter.assertNull(err)
             waiter.assertEquals(2, products?.size)
             waiter.assertEquals("unknown_subscription", products?.get(0)?.sku)
+            waiter.assertEquals("2e517bdd0613c16f21e5fab1", products?.get(0)?.originalPurchase)
             waiter.assertEquals("", products?.get(1)?.sku)
+            waiter.assertEquals(true, products?.get(1)?.isPromo)
+            waiter.assertEquals("SPRING", products?.get(1)?.promoCode)
             waiter.assertEquals(0, this.errorCount)
             // Get active products including all states
             Iaphub.getActiveProducts(includeSubscriptionStates=listOf("retry_period", "paused")) { err, products ->

@@ -12,7 +12,13 @@ open class ActiveProduct : Product {
   val platform: String?
   // Android token
   val androidToken: String?
+  // If it has been purchased using a promo code
+  val isPromo: Boolean
+  // Promo code used for the purchase
+  val promoCode: String?
 
+  // Original purchase id
+  val originalPurchase: String?
   // Subscription expiration date
   val expirationDate: Date?
   // If the subscription will auto renew
@@ -39,8 +45,11 @@ open class ActiveProduct : Product {
       )
     }
     this.platform = data["platform"] as? String
+    this.isPromo = (data["isPromo"] as? Boolean) ?: false
+    this.promoCode = data["promoCode"] as? String
     this.androidToken = data["androidToken"] as? String
     // The following properties are for subscriptions only
+    this.originalPurchase = data["originalPurchase"] as? String
     this.expirationDate = Util.dateFromIsoString(str=data["expirationDate"], allowNull=!this.type.contains("subscription")) { exception ->
       IaphubError(
         IaphubErrorCode.unexpected,
@@ -85,6 +94,9 @@ open class ActiveProduct : Product {
       "purchase" to this.purchase as? Any?,
       "purchaseDate" to Util.dateToIsoString(this.purchaseDate) as? Any?,
       "platform" to this.platform as? Any?,
+      "isPromo" to this.isPromo as? Any?,
+      "promoCode" to this.promoCode as? Any?,
+      "originalPurchase" to this.originalPurchase as? Any?,
       "expirationDate" to Util.dateToIsoString(this.expirationDate) as? Any?,
       "isSubscriptionRenewable" to this.isSubscriptionRenewable as? Any?,
       "isFamilyShare" to this.isFamilyShare as? Any?,
