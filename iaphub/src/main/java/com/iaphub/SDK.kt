@@ -350,30 +350,30 @@ open class SDK: LifecycleObserver
               }
               // Check if the receipt is invalid
               else if (receiptResponse.status == "invalid") {
-                error = IaphubError(IaphubErrorCode.receipt_invalid, params=mapOf("context" to receipt.context), silent=receipt.context != "purchase")
+                error = IaphubError(IaphubErrorCode.receipt_failed, IaphubReceiptErrorCode.receipt_invalid, params=mapOf("context" to receipt.context), silent=receipt.context != "purchase")
                 shouldFinishReceipt = true
               }
               // Check if the receipt is expired (the receipt is expired and it cannot be used anymore)
               else if (receiptResponse.status == "expired") {
-                error = IaphubError(IaphubErrorCode.receipt_expired, params=mapOf("context" to receipt.context), silent=receipt.context != "purchase")
+                error = IaphubError(IaphubErrorCode.receipt_failed, IaphubReceiptErrorCode.receipt_expired, params=mapOf("context" to receipt.context), silent=receipt.context != "purchase")
                 shouldFinishReceipt = true
               }
               // Check if the receipt is stale (the receipt is valid but no purchases still valid were found)
               else if (receiptResponse.status == "stale") {
-                error = IaphubError(IaphubErrorCode.receipt_stale, params=mapOf("context" to receipt.context), silent=receipt.context != "purchase")
+                error = IaphubError(IaphubErrorCode.receipt_failed, IaphubReceiptErrorCode.receipt_stale, params=mapOf("context" to receipt.context), silent=receipt.context != "purchase")
                 shouldFinishReceipt = true
               }
               // Check if the receipt is failed
               else if (receiptResponse.status == "failed") {
-                error = IaphubError(IaphubErrorCode.receipt_failed, params = mapOf("context" to receipt.context))
+                error = IaphubError(IaphubErrorCode.receipt_failed, IaphubReceiptErrorCode.receipt_failed, params = mapOf("context" to receipt.context))
+              }
+              // Check if the receipt is processing
+              else if (receiptResponse.status == "processing") {
+                error = IaphubError(IaphubErrorCode.receipt_failed, IaphubReceiptErrorCode.receipt_processing, params=mapOf("context" to receipt.context), silent=receipt.context != "purchase")
               }
               // Check if the receipt is deferred (its final status is pending external action)
               else if (receiptResponse.status == "deferred") {
                 error = IaphubError(IaphubErrorCode.deferred_payment, params=mapOf("context" to receipt.context), silent=true)
-              }
-              // Check if the receipt is processing
-              else if (receiptResponse.status == "processing") {
-                error = IaphubError(IaphubErrorCode.receipt_processing, params=mapOf("context" to receipt.context), silent=receipt.context != "purchase")
               }
               // Check any other status different than success
               else {

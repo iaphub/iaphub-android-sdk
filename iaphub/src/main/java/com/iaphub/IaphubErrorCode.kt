@@ -16,10 +16,6 @@ internal enum class IaphubErrorCode(override val message: String): IaphubErrorPr
   product_not_available("The requested product isn't available for purchase"),
   product_already_owned("Product already owned"),
   receipt_failed("Receipt validation failed, receipt processing will be automatically retried if possible"),
-  receipt_invalid("Receipt is invalid"),
-  receipt_stale("Receipt is stale, no purchases still valid were found"),
-  receipt_expired("Receipt is expired"),
-  receipt_processing("Receipt is currently processing"),
   cross_platform_conflict("Cross platform conflict detected, an active subscription from another platform has been detected"),
   product_already_purchased("Product already purchased, it is already an active product of the user"),
   user_conflict("The transaction is successful but it belongs to a different user, a restore might be needed"),
@@ -67,6 +63,14 @@ internal enum class IaphubNetworkErrorCode(override val message: String): Iaphub
   response_empty("response empty"),
   response_parsing_failed("response parsing failed"),
   unknown_exception("unknown exception")
+}
+
+internal enum class IaphubReceiptErrorCode(override val message: String): IaphubErrorProtocol {
+  receipt_failed("receipt processing failed"),
+  receipt_invalid("receipt invalid"),
+  receipt_stale("receipt stale, no purchases still valid were found"),
+  receipt_expired("receipt expired"),
+  receipt_processing("receipt currently processing")
 }
 
 internal class IaphubCustomError: IaphubErrorProtocol {
