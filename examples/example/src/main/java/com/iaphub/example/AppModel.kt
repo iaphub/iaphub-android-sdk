@@ -21,6 +21,10 @@ class AppModel {
             Log.d("IAPHUB", "-> setOnUserUpdateListener called")
             this.refreshProducts()
         }
+        // Listen for deferred purchases
+        Iaphub.setOnDeferredPurchaseListener { transaction ->
+            Log.d("IAPHUB", "-> setOnDeferredPurchaseListener called ${transaction.getData()}")
+        }
         // Listen for errors
         Iaphub.setOnErrorListener { err ->
             Log.d("IAPHUB", "-> setOnErrorListener called ${err?.message}")
@@ -66,7 +70,14 @@ class AppModel {
     fun restoreProducts(completion: ((IaphubError?) -> Unit)? = null) {
         if (this.restoreLoading.value == true) return
         this.restoreLoading.value = true
-        Iaphub.restore { err, _ ->
+        Iaphub.restore { err, response ->
+            Log.d("IAPHUB", "-> Restore, newPurchases: ${response?.newPurchases?.size}, transferredActiveProducts: ${response?.transferredActiveProducts?.size}")
+            if (response?.newPurchases?.size != null && response?.newPurchases?.size != 0) {
+                Log.d("IAPHUB", "-> Restore, newPurchase: ${response?.newPurchases.get(0)?.getData()}")
+            }
+            if (response?.transferredActiveProducts?.size != null && response?.transferredActiveProducts?.size != 0) {
+                Log.d("IAPHUB", "-> Restore, transferredActiveProduct: ${response?.transferredActiveProducts.get(0)?.getData()}")
+            }
             this.restoreLoading.value = false
             if (err != null) {
                 if (completion != null) {
