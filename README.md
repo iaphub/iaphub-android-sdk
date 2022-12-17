@@ -27,14 +27,14 @@ Implementing In-app purchases in your app should be a piece of cake!<br/>
 
 2. Add the library to your `build.gradle` file
 ```
-implementation 'com.iaphub:iaphub-android-sdk:3.0.+'
+implementation 'com.iaphub:iaphub-android-sdk:4.0.+'
 ```
 
 3. Read our complete guide to [set up your app](https://www.iaphub.com/docs/getting-started/set-up-app/).
 
 <br>
 
-⚠ If you're migrating from v2.X.X to v3.X.X, read [this](https://github.com/iaphub/iaphub-android-sdk/tree/master/guides/migrate-v2-to-v3.md).
+⚠ If you're migrating from v2.X.X to v3.X.X, read [this](https://github.com/iaphub/iaphub-android-sdk/tree/master/guides/migrate-v2-to-v3.md).<br/>
 ⚠ If you're migrating from v3.X.X to v4.X.X, read [this](https://github.com/iaphub/iaphub-android-sdk/tree/master/guides/migrate-v3-to-v4.md).
 
 ## Start
