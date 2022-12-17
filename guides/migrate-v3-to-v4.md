@@ -49,6 +49,13 @@ This object will contain two properties:
   }
 ```
 
+#### The enhancement of the `ActiveProduct` object
+
+The object has new properties:
+- `isPromo`
+- `promoCode`
+- `originalPurchase`
+
 ### Need help?
 
 If you have any questions you can of course contact us at `support@iaphub.com`.
