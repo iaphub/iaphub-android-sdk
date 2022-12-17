@@ -35,6 +35,7 @@ implementation 'com.iaphub:iaphub-android-sdk:3.0.+'
 <br>
 
 ⚠ If you're migrating from v2.X.X to v3.X.X, read [this](https://github.com/iaphub/iaphub-android-sdk/tree/master/guides/migrate-v2-to-v3.md).
+⚠ If you're migrating from v3.X.X to v4.X.X, read [this](https://github.com/iaphub/iaphub-android-sdk/tree/master/guides/migrate-v3-to-v4.md).
 
 ## Start
 Import `Iaphub` and start the library in the `onCreate` method of your application<br/>
@@ -90,7 +91,7 @@ They are all optional but `setOnUserUpdateListener` is highly recommended in ord
 
 #### Deferred purchase
 ```kotlin
-  Iaphub.setOnDeferredPurchaseListener { ->
+  Iaphub.setOnDeferredPurchaseListener { transaction ->
     // Called when a deferred purchase has been processed
     // A deferred purchase is a purchase processed 'outside' of the buy method 
   }
