@@ -10,6 +10,16 @@ import java.lang.Exception
 import java.util.*
 import kotlin.concurrent.timerTask
 
+internal class ReceiptProcessing {
+  val token: String
+  val date: Date
+
+  constructor(token: String) {
+    this.token = token
+    this.date = Date()
+  }
+}
+
 internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateListener {
 
   private var sdk: SDK
@@ -24,8 +34,11 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
   private var lastReceipt: Receipt? = null
   private var cachedSkusDetails: MutableMap<String, com.android.billingclient.api.ProductDetails> = mutableMapOf()
   private var isRestoring: Boolean = false
+  private var isRefreshing: Boolean = false
   private var isStartingConnection: Boolean = false
   private var hasBillingUnavailable: Boolean = false
+  private var refreshedReceipts: MutableList<ReceiptProcessing> = mutableListOf()
+  private var failedReceipts: MutableList<ReceiptProcessing> = mutableListOf()
 
   /**
    * Constructor
@@ -185,6 +198,41 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
         this.isRestoring = false
         completion(null)
       }
+    }
+  }
+
+  /**
+   * Refresh
+   */
+  @Synchronized
+  override fun refresh() {
+    // Do not refresh in some cases
+    if (this.isRefreshing || this.isRestoring || this.buyRequest != null) {
+      return
+    }
+    // Mark as refreshing
+    this.isRefreshing = true
+    // Get purchases
+    this.getPurchases() { err, purchases ->
+      if (err != null) {
+        this.isRefreshing = false
+        return@getPurchases
+      }
+      purchases.forEach { purchase ->
+        val refreshedReceipt = this.refreshedReceipts.find { receipt -> receipt.token == purchase.purchaseToken }
+        val failedReceipt = this.failedReceipts.find { receipt -> receipt.token == purchase.purchaseToken }
+        val failedReceiptRetryDuration = 60 * 60 * 24 * 3
+
+        // Process purchase if not processed before or processed with an error less than 72 hours ago
+        if (refreshedReceipt == null || (failedReceipt != null && Date(failedReceipt.date.getTime() + failedReceiptRetryDuration).after(Date()))) {
+          this.purchaseQueue?.add(purchase)
+        }
+      }
+      // Update refreshed order ids
+      this.refreshedReceipts = mutableListOf()
+      purchases.map { purchase -> ReceiptProcessing(purchase.purchaseToken) }
+      // Mark refreshing as done
+      this.isRefreshing = false
     }
   }
 
@@ -549,6 +597,9 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
           if (receiptTransaction == null) {
             IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.property_missing, "couldn't find transaction in receipt in order to determine product type", params=mapOf("context" to receipt.context, "sku" to receipt.sku, "orderId" to purchase.orderId))
           }
+          // Remove from failed receipts if present
+          this.failedReceipts = this.failedReceipts.filter { receipt -> receipt.token != purchaseToken }.toMutableList()
+          // Finish purchase
           val isConsumable = listOf("consumable", "subscription").contains(receiptTransaction?.type)
           this.finishPurchase(purchase, isConsumable) { _ ->
             completeProcess(err, receiptTransaction)
@@ -556,6 +607,14 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
         }
         // Otherwise complete process directly
         else {
+          // If we have an error and the receipt isn't finished, add it to the failed receipts list
+          if (err != null) {
+            var failedReceipt = this.failedReceipts.find { receipt -> receipt.token == purchaseToken }
+            if (failedReceipt == null) {
+              this.failedReceipts.add(ReceiptProcessing(purchase.purchaseToken))
+            }
+          }
+          // Call completion
           completeProcess(err, receiptTransaction)
         }
       }

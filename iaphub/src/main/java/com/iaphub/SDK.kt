@@ -166,6 +166,11 @@ open class SDK: LifecycleObserver
     }
     // Buy product
     user.buy(activity, sku, prorationMode, crossPlatformConflict) { err, transaction ->
+      // Refresh store if we receive a product_already_owned error (it could be because the product hasn't been consumed)
+      if (err?.code == "product_already_owned") {
+        this.store?.refresh()
+      }
+      // Call completion
       Util.dispatchToMain { completion(err, transaction) }
     }
   }
@@ -297,7 +302,10 @@ open class SDK: LifecycleObserver
     var user = this.user
     // Refresh user (only if it has already been fetched)
     if (user != null && user.fetchDate != null && this.testing.lifecycleEvent != false) {
-      user.refresh()
+      user.refresh() { _, _, _ ->
+        // Refresh store
+        this.store?.refresh()
+      }
     }
   }
 
@@ -336,33 +344,40 @@ open class SDK: LifecycleObserver
           if (error == null && receiptResponse != null) {
             // Refresh user in case the user id has been updated
             user.refresh { _, _, _ ->
-              // Finish receipt
-              shouldFinishReceipt = true
+              // Finish receipt if it is a success
+              if (receiptResponse.status == "success") {
+                shouldFinishReceipt = true
+              }
               // Check if the receipt is invalid
-              if (receiptResponse.status == "invalid") {
+              else if (receiptResponse.status == "invalid") {
                 error = IaphubError(IaphubErrorCode.receipt_invalid, params=mapOf("context" to receipt.context), silent=receipt.context != "purchase")
+                shouldFinishReceipt = true
+              }
+              // Check if the receipt is expired (the receipt is expired and it cannot be used anymore)
+              else if (receiptResponse.status == "expired") {
+                error = IaphubError(IaphubErrorCode.receipt_expired, params=mapOf("context" to receipt.context), silent=receipt.context != "purchase")
+                shouldFinishReceipt = true
+              }
+              // Check if the receipt is stale (the receipt is valid but no purchases still valid were found)
+              else if (receiptResponse.status == "stale") {
+                error = IaphubError(IaphubErrorCode.receipt_stale, params=mapOf("context" to receipt.context), silent=receipt.context != "purchase")
+                shouldFinishReceipt = true
               }
               // Check if the receipt is failed
               else if (receiptResponse.status == "failed") {
-                error = IaphubError(IaphubErrorCode.receipt_failed, params=mapOf("context" to receipt.context))
-              }
-              // Check if the receipt is stale
-              else if (receiptResponse.status == "stale") {
-                error = IaphubError(IaphubErrorCode.receipt_stale, params=mapOf("context" to receipt.context), silent=receipt.context != "purchase")
+                error = IaphubError(IaphubErrorCode.receipt_failed, params = mapOf("context" to receipt.context))
               }
               // Check if the receipt is deferred (its final status is pending external action)
               else if (receiptResponse.status == "deferred") {
                 error = IaphubError(IaphubErrorCode.deferred_payment, params=mapOf("context" to receipt.context), silent=true)
-                shouldFinishReceipt = false
               }
               // Check if the receipt is processing
               else if (receiptResponse.status == "processing") {
                 error = IaphubError(IaphubErrorCode.receipt_processing, params=mapOf("context" to receipt.context), silent=receipt.context != "purchase")
               }
               // Check any other status different than success
-              else if (receiptResponse.status != "success") {
+              else {
                 error = IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.receipt_validation_response_invalid, "status: ${receiptResponse.status}", params=mapOf("context" to receipt.context))
-                shouldFinishReceipt = false
               }
               // If there is no error, try to find the transaction
               if (error == null) {
@@ -455,5 +470,7 @@ open class SDK: LifecycleObserver
         }
       }
     )
+    // Refresh store
+    store.refresh()
   }
 }
