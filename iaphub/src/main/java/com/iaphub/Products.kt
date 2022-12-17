@@ -12,4 +12,11 @@ class Products {
     this.productsForSale = productsForSale
   }
 
+  fun getData(): Map<String, Any?> {
+    return mapOf(
+      "activeProducts" to this.activeProducts.map { product -> product.getData() },
+      "productsForSale" to this.productsForSale.map { product -> product.getData() }
+    )
+  }
+
 }
