@@ -387,8 +387,8 @@ Iaphub.showManageSubscriptions({ (err: IHError?) in
 ### RestoreResponse
 | Prop  | Type | Description |
 | :------------ |:---------------:| :-----|
-| newPurchases | `[ReceiptTransaction]?` | New purchases processed during the restore |
-| transferredActiveProducts | `[ActiveProduct]?` | Active products transferred (from another user) during the restore |
+| newPurchases | `[ReceiptTransaction]` | New purchases processed during the restore |
+| transferredActiveProducts | `[ActiveProduct]` | Active products transferred (from another user) during the restore |
 
 ### IaphubError
 | Prop  | Type | Description |
