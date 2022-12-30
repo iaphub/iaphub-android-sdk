@@ -511,7 +511,10 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
     // Mark the connection as starting
     this.isStartingConnection = true
     // Trigger billing startConnection
-    billing.startConnection(this)
+    // Only if not already connecting, it could be if the timeout was previously triggered
+    if (billing.connectionState != BillingClient.ConnectionState.CONNECTING) {
+      billing.startConnection(this)
+    }
     // Create timer to check if the billing isn't ready in the next 20 seconds
     val self = this
     val timeout = this.sdk.testing.storeReadyTimeout ?: 20000
