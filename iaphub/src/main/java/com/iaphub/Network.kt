@@ -90,7 +90,8 @@ internal class Network {
   /**
    * Send a request
    */
-  fun sendRequest(type: String, route: String, params: Map<String, Any> = emptyMap(), timeout: Long = 6, completion: (IaphubError?, Map<String, Any>?, Response?) -> Unit) {
+  fun sendRequest(type: String, route: String, params: Map<String, Any> = emptyMap(), connectTimeout: Long = 2, timeout: Long = 8, completion: (IaphubError?, Map<String, Any>?, Response?) -> Unit) {
+    val startTime = System.currentTimeMillis()
     val infos = mutableMapOf("type" to type, "route" to route)
 
     // Return mock if defined
@@ -104,6 +105,7 @@ internal class Network {
     try {
       val client = OkHttpClient
         .Builder()
+        .connectTimeout(connectTimeout, TimeUnit.SECONDS)
         .callTimeout(timeout, TimeUnit.SECONDS)
         .build()
       var request = Request.Builder()
@@ -143,11 +145,18 @@ internal class Network {
       client.newCall(request.build()).enqueue(object : Callback {
         // When the request fails
         override fun onFailure(call: Call, err: IOException) {
+          // Add duration to infos
+          val endTime = System.currentTimeMillis()
+          infos["duration"] = "${endTime - startTime}"
+          // Return completion
           completion(IaphubError(IaphubErrorCode.network_error, IaphubNetworkErrorCode.request_failed, err.message ?: "", params=infos, silent=true), null, null)
         }
         // When the request succeed
         override fun onResponse(call: Call, response: Response) {
           response.use {
+            // Add duration to infos
+            val endTime = System.currentTimeMillis()
+            infos["duration"] = "${endTime - startTime}"
             // Add status code to infos
             infos["statusCode"] = "${response.code}"
             // Get json string
