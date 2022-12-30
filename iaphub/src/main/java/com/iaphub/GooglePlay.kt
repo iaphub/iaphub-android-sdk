@@ -798,6 +798,10 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
     if (responseCode == BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED) {
       errorType = IaphubErrorCode.billing_unavailable
       message = "FEATURE_NOT_SUPPORTED error" + billingResult.debugMessage
+      // Silence log if we already had a billing unavailable error
+      if (this.hasBillingUnavailable) {
+        silentLog = true
+      }
     }
     else if (responseCode == BillingClient.BillingResponseCode.BILLING_UNAVAILABLE) {
       errorType = IaphubErrorCode.billing_unavailable
