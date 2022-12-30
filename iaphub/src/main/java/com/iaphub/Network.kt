@@ -143,7 +143,7 @@ internal class Network {
       client.newCall(request.build()).enqueue(object : Callback {
         // When the request fails
         override fun onFailure(call: Call, err: IOException) {
-          completion(IaphubError(IaphubErrorCode.network_error, IaphubNetworkErrorCode.request_failed, err.message ?: "", silent=true), null, null)
+          completion(IaphubError(IaphubErrorCode.network_error, IaphubNetworkErrorCode.request_failed, err.message ?: "", params=infos, silent=true), null, null)
         }
         // When the request succeed
         override fun onResponse(call: Call, response: Response) {
