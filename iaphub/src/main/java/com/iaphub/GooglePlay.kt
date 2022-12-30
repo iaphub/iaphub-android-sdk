@@ -391,14 +391,9 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
     if (error?.code == "billing_unavailable") {
       this.hasBillingUnavailable = true
     }
-    // Otherwise if the billing is now ready after a previous billing_unavailable error, send a log
+    // Otherwise if the billing is now ready after a previous billing_unavailable error
     else if (error == null && this.hasBillingUnavailable) {
       this.hasBillingUnavailable = false
-      Iaphub.user?.sendLog(mapOf(
-        "level" to "info",
-        "message" to "Billing ready after previous billing_unavailable error",
-        "fingerprint" to "billing_unavailable_now_ready"
-      ))
     }
     // Check the billing has been started
     if (billing == null) {
