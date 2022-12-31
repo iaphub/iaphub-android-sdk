@@ -523,7 +523,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
         if (!self.isBillingReady()) {
           err = IaphubError(
             IaphubErrorCode.billing_unavailable,
-            IaphubUnexpectedErrorCode.billing_ready_timeout,
+            IaphubBillingUnavailableErrorCode.billing_ready_timeout,
             silentLog=self.hasBillingUnavailable
           )
         }
@@ -797,6 +797,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
 
     if (responseCode == BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED) {
       errorType = IaphubErrorCode.billing_unavailable
+      subErrorType = IaphubBillingUnavailableErrorCode.play_store_outdated
       message = "FEATURE_NOT_SUPPORTED error" + billingResult.debugMessage
       // Silence log if we already had a billing unavailable error
       if (this.hasBillingUnavailable) {
@@ -806,6 +807,10 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
     else if (responseCode == BillingClient.BillingResponseCode.BILLING_UNAVAILABLE) {
       errorType = IaphubErrorCode.billing_unavailable
       message = billingResult.debugMessage
+      // Detect if it is an issue with the Play Store being outdated
+      if (message.contains("API version is less than")) {
+        subErrorType = IaphubBillingUnavailableErrorCode.play_store_outdated
+      }
       // Silence log if we already had a billing unavailable error
       if (this.hasBillingUnavailable) {
         silentLog = true

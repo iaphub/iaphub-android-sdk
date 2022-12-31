@@ -27,6 +27,11 @@ internal enum class IaphubErrorCode(override val message: String): IaphubErrorPr
   buy_processing("A purchase is currently processing")
 }
 
+internal enum class IaphubBillingUnavailableErrorCode(override val message: String): IaphubErrorProtocol {
+  play_store_outdated("The Play Store app on the user's device is out of date, it must be updated"),
+  billing_ready_timeout("Google Play billing not ready, timeout triggered")
+}
+
 internal enum class IaphubUnexpectedErrorCode(override val message: String): IaphubErrorProtocol {
   start_missing("iaphub not started"),
   receipt_validation_response_invalid("receipt validation failed, response invalid"),
@@ -40,9 +45,8 @@ internal enum class IaphubUnexpectedErrorCode(override val message: String): Iap
   product_missing_from_store("google play did not return the product, the product has been filtered, if the sku is valid your GooglePlay account or sandbox environment is probably not configured properly (https://iaphub.com/docs/set-up-android/configure-sandbox-testing)"),
   post_receipt_data_missing("post receipt data missing"),
   receipt_transation_parsing_failed("receipt transaction parsing from data failed, transaction ignored"),
-  end_connection_failed("google play pilling end connection failed"),
+  end_connection_failed("google play billing end connection failed"),
   product_details_parsing_failed("product details parsing failed"),
-  billing_ready_timeout("Google Play billing not ready, timeout triggered"),
   consume_failed("consume transaction failed"),
   acknowledge_failed("acknowledge transaction failed"),
   billing_developer_error("the billing service isn't used properly"),
