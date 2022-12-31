@@ -422,9 +422,12 @@ internal class User {
         "context" to "${Iaphub.appId}/${Iaphub.user?.id ?: ""}"
       )
     )
-    val custom = options["params"]
+    val custom = options["params"] as? Map<String, Any?>
     if (custom != null) {
-      params["data"]?.set("custom", custom)
+      params["data"]?.set("custom", custom + mapOf(
+        "userIsInitialized" to this.isInitialized,
+        "userHasProducts" to (this.productsForSale.isNotEmpty() || this.activeProducts.isNotEmpty())
+      ))
     }
     val fingerprint = options["fingerprint"]
     if (fingerprint != null) {
