@@ -53,13 +53,13 @@ internal class Network {
   /**
    * Send a request
    */
-  fun send(type: String, route: String, params: Map<String, Any> = emptyMap(), timeout: Long = 6, retry: Int = 2, silentLog: Boolean = false, completion: (IaphubError?, Map<String, Any>?) -> Unit) {
+  fun send(type: String, route: String, params: Map<String, Any> = emptyMap(), connectTimeout: Long = 4, timeout: Long = 6, retry: Int = 2, silentLog: Boolean = false, completion: (IaphubError?, Map<String, Any>?) -> Unit) {
     // Retry request up to 2 times with a delay of 1 second
     Util.retry<Map<String, Any>>(
       times=retry,
       delay=1,
       task={ callback ->
-        this.sendRequest(type=type, route=route, params=params, timeout=timeout) { err, data, httpResponse ->
+        this.sendRequest(type=type, route=route, params=params, connectTimeout=connectTimeout, timeout=timeout) { err, data, httpResponse ->
           // Retry request if the request failed with a network error
           if (err != null && err.code == "network_error") {
             callback(true, err, data)
@@ -90,7 +90,7 @@ internal class Network {
   /**
    * Send a request
    */
-  fun sendRequest(type: String, route: String, params: Map<String, Any> = emptyMap(), connectTimeout: Long = 2, timeout: Long = 8, completion: (IaphubError?, Map<String, Any>?, Response?) -> Unit) {
+  fun sendRequest(type: String, route: String, params: Map<String, Any> = emptyMap(), connectTimeout: Long = 4, timeout: Long = 6, completion: (IaphubError?, Map<String, Any>?, Response?) -> Unit) {
     val startTime = System.currentTimeMillis()
     val infos = mutableMapOf("type" to type, "route" to route)
 
@@ -106,7 +106,7 @@ internal class Network {
       val client = OkHttpClient
         .Builder()
         .connectTimeout(connectTimeout, TimeUnit.SECONDS)
-        .callTimeout(timeout, TimeUnit.SECONDS)
+        .callTimeout(connectTimeout + timeout, TimeUnit.SECONDS)
         .build()
       var request = Request.Builder()
       var urlBase = (this.endpoint + route).toHttpUrlOrNull()

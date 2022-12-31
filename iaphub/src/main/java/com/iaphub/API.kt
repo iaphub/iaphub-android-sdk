@@ -54,6 +54,8 @@ internal class API {
     this.network.send(
       type="POST",
       route="/app/${this.user.sdk.appId}/user/${currentUserId}/login",
+      retry=0,
+      connectTimeout=2,
       params=mapOf("userId" to newUserId),
       completion={ err, _ -> completion(err)}
     )
@@ -75,11 +77,19 @@ internal class API {
    * Post receipt
    */
   fun postReceipt(receipt: Map<String, Any>, completion: (IaphubError?, Map<String, Any>?) -> Unit) {
+    var timeout: Long = 31
+    var connectTimeout: Long = 4
+
+    if (receipt["context"] as? String == "purchase") {
+      timeout = 61
+      connectTimeout = 8
+    }
     this.network.send(
       type="POST",
       route="/app/${this.user.sdk.appId}/user/${this.user.id}/receipt",
       params=receipt,
-      timeout=45,
+      timeout=timeout,
+      connectTimeout=connectTimeout,
       completion=completion
     )
   }
@@ -115,6 +125,7 @@ internal class API {
     this.network.send(
       type="POST",
       route="/app/${this.user.sdk.appId}/log",
+      connectTimeout=2,
       timeout=2,
       retry=0,
       silentLog=true,
