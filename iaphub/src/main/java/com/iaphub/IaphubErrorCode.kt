@@ -42,7 +42,7 @@ internal enum class IaphubUnexpectedErrorCode(override val message: String): Iap
   save_cache_keychain_failed("cannot save cache date, save to keychain failed"),
   user_id_invalid("user id invalid"),
   update_item_parsing_failed("error parsing item of api in order to update user"),
-  product_missing_from_store("google play did not return the product, the product has been filtered, if the sku is valid your GooglePlay account or sandbox environment is probably not configured properly (https://iaphub.com/docs/set-up-android/configure-sandbox-testing)"),
+  product_missing_from_store("google play did not return the product, the product has been filtered (https://www.iaphub.com/docs/troubleshooting/product-not-returned)"),
   post_receipt_data_missing("post receipt data missing"),
   receipt_transation_parsing_failed("receipt transaction parsing from data failed, transaction ignored"),
   end_connection_failed("google play billing end connection failed"),
