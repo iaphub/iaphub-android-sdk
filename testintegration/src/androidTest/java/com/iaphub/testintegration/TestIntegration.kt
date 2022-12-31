@@ -92,7 +92,6 @@ class TestIntegration {
         Iaphub.testing.storeReadyTimeout = 2000
         // Callback function
         val callback = fun (err: IaphubError?, products: List<Product>?) {
-            Log.d("IAPHUB", "-> Received callback")
             waiter.assertEquals("billing_unavailable", err?.code)
             callbackCount++
             if (callbackCount == 3) {
@@ -281,6 +280,8 @@ class TestIntegration {
                             "user" to "61781dff9bf07f0c7d32c8b5",
                             "purchase" to "2e517bdd0613c16f11e7fbt1",
                             "purchaseDate" to "2021-05-22T01:34:40.462Z",
+                            "expirationDate" to "2031-05-22T01:34:40.462Z",
+                            "subscriptionState" to "active",
                             "webhookStatus" to "success"
                         )
                     )
