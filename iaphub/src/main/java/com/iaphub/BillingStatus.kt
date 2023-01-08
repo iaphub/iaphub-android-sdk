@@ -12,4 +12,11 @@ class BillingStatus {
     this.filteredProductIds = filteredProductIds
   }
 
+  fun getData(): Map<String, Any?> {
+    return mapOf(
+      "error" to this.error?.getData(),
+      "filteredProductIds" to this.filteredProductIds
+    )
+  }
+
 }
