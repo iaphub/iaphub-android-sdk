@@ -692,12 +692,20 @@ internal class User {
       this.productsForSale = this.productsForSale + recoveredProducts
       // Update filtered products for sale
       this.filteredProductsForSale = this.filteredProductsForSale.filter { product -> product.details == null }
-      // Trigger onUserUpdate
+      // If we recovered products
       if (recoveredProducts.isNotEmpty()) {
+        // Trigger onUserUpdate
         this.onUserUpdate?.let { it() }
+        // Update pricings
+        this.updatePricings { _ ->
+          // Call completion
+          completion(true)
+        }
       }
-      // Call completion
-      completion(recoveredProducts.isNotEmpty())
+      // Otherwise just call the completion
+      else {
+        completion(false)
+      }
     }
   }
 
