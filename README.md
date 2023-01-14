@@ -237,11 +237,11 @@ A method `getProducts` is also available in order to get the products for sale a
 ```
 
 ## Get billing status
-The method `getBillingStatus` method will return useful informations if you have an issue with the products returned by the `getProducts` or `getProductsForSale` methods (for instance if no products for sale were returned).
+The `getBillingStatus` method will return useful informations if you have an issue with the products returned by the `getProducts` or `getProductsForSale` methods (for instance if no products for sale were returned).
 ```kotlin
   val status = Iaphub.getBillingStatus()
 
-  // You should display an appropriate message if err.code equals "billing_unavailable"
+  // You should display an appropriate message if the billing is unavailable
   if (status.error?.code == "billing_unavailable") {
     if (status.error?.subcode == "play_store_outdated") {
       // Display a message saying that the Play Store app on the user's device is out of date, it must be updated
