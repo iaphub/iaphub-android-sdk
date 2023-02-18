@@ -410,6 +410,12 @@ Iaphub.showManageSubscriptions({ (err: IHError?) in
 | newPurchases | `[ReceiptTransaction]` | New purchases processed during the restore |
 | transferredActiveProducts | `[ActiveProduct]` | Active products transferred (from another user) during the restore |
 
+### BillingStatus
+| Prop  | Type | Description |
+| :------------ |:---------------:| :-----|
+| error | `IaphubError?` | Error |
+| filteredProductIds | `List<String>` | Products that were filtered from the products for sale |
+
 ### IaphubError
 | Prop  | Type | Description |
 | :------------ |:---------------:| :-----|
