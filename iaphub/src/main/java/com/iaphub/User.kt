@@ -42,6 +42,8 @@ internal class User {
   internal var isRestoring: Boolean = false
   // Indicates the user is initialized
   internal var isInitialized: Boolean = false
+  // Indicates the login with the server is enabled
+  internal var isServerLoginEnabled: Boolean = false
   // Indicates if the user needs to be fetched
   internal var needsFetch: Boolean = false
   // Latest receipt post date
@@ -68,6 +70,22 @@ internal class User {
       this.id = this.getAnonymousId()
     }
     this.api = API(user=this)
+  }
+
+  /**
+  Enable server login
+   */
+  fun enableServerLogin() {
+    this.isServerLoginEnabled = true
+    this.saveCacheData()
+  }
+
+  /**
+  Disable server login
+   */
+  fun disableServerLogin() {
+    this.isServerLoginEnabled = false
+    this.saveCacheData()
   }
 
   /*
@@ -364,8 +382,12 @@ internal class User {
       return completion(null)
     }
     // Detect if we should call the API to update the id
-    val shouldCallApi = this.isAnonymous()
+    val shouldCallApi = this.isAnonymous() && this.isServerLoginEnabled
     val currentUserId = this.id
+    // Disable server login
+    if (this.isServerLoginEnabled) {
+      this.disableServerLogin()
+    }
     // Update id
     this.id = userId
     // Reset user
@@ -407,8 +429,14 @@ internal class User {
       this.updateDate = Date()
       // Update receipt post date
       this.receiptPostDate = Date()
+      // Create receipt response
+      val response = ReceiptResponse(data)
+      // If it is an anonymous user, enable the server login if a new transaction is detected
+      if (this.isAnonymous() && response.status == "success" && response.newTransactions?.isEmpty() == false) {
+        this.enableServerLogin()
+      }
       // Parse and return receipt response
-      completion(null, ReceiptResponse(data))
+      completion(null, response)
     }
   }
 
@@ -543,6 +571,7 @@ internal class User {
         "id" to this.id as Any,
         "fetchDate" to Util.dateToIsoString(this.fetchDate),
         "pricings" to this.pricings.map { pricing -> pricing.getData() },
+        "isServerLoginEnabled" to this.isServerLoginEnabled,
         "cacheVersion" to Config.cacheVersion
       ))
     }
@@ -737,6 +766,7 @@ internal class User {
     this.updateDate = null
     this.needsFetch = false
     this.isInitialized = false
+    this.isServerLoginEnabled = false
   }
 
   /*
@@ -844,6 +874,7 @@ internal class User {
             params=mapOf("item" to item)
           )
         }
+        this.isServerLoginEnabled = jsonMap["isServerLoginEnabled"] as? Boolean ?: false
       }
       completion()
     }

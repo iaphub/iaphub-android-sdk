@@ -33,7 +33,7 @@ class TestIntegration {
             if (iaphubStarted == false) {
                 iaphubStarted = true
                 context = it
-                Iaphub.start(context=it, appId="61718bfd9bf07f0c7d2357d1",  apiKey="Usaw9viZNrnYdNSwPIFFo7iUxyjK23K3")
+                Iaphub.start(context=it, appId="61718bfd9bf07f0c7d2357d1",  apiKey="Usaw9viZNrnYdNSwPIFFo7iUxyjK23K3", allowAnonymousPurchase=true)
             }
             // Add listeners
             Iaphub.setOnErrorListener { err ->
@@ -214,11 +214,12 @@ class TestIntegration {
     @Test
     fun test05_login() {
         val waiter = Waiter()
+        var loginTriggered = false
 
         // Mock request posting receipt
         Iaphub.testing.mockNetworkRequest() { type, route, params ->
             if (route.contains("/login")) {
-                waiter.assertEquals("42", params["userId"])
+                loginTriggered = true
             }
             return@mockNetworkRequest null
         }
@@ -226,6 +227,7 @@ class TestIntegration {
         Iaphub.login("42") { err ->
             waiter.assertNull(err)
             waiter.assertEquals("42", Iaphub.getUserId())
+            waiter.assertEquals(false, loginTriggered)
             waiter.resume()
         }
         // Wait waiter
@@ -233,7 +235,12 @@ class TestIntegration {
     }
 
     @Test
-    fun test06_buy() {
+    fun test06_logout() {
+        Iaphub.logout()
+    }
+
+    @Test
+    fun test07_buy() {
         val waiter = Waiter()
         // Mock request posting receipt
         Iaphub.testing.mockNetworkRequest() { type, route, _ ->
@@ -263,6 +270,36 @@ class TestIntegration {
                 waiter.assertNull(err)
                 waiter.assertEquals("consumable", transaction?.sku)
                 waiter.assertEquals("$1.99", transaction?.localizedPrice)
+                waiter.resume()
+            }
+        }
+        // Wait waiter
+        waiter.await(5000)
+    }
+
+    @Test
+    fun test08_loginWithServer() {
+        val waiter = Waiter()
+        var loginTriggered = false
+
+        // Mock request posting receipt
+        Iaphub.testing.mockNetworkRequest() { type, route, params ->
+            if (route.contains("/login")) {
+                loginTriggered = true
+                waiter.assertEquals("42", params["userId"])
+            }
+            return@mockNetworkRequest null
+        }
+        // Login
+        Iaphub.login("42") { err ->
+            waiter.assertNull(err)
+            waiter.assertEquals("42", Iaphub.getUserId())
+            waiter.assertEquals(true, loginTriggered)
+
+            Iaphub.logout()
+            loginTriggered = false
+            Iaphub.login("43") { err ->
+                waiter.assertEquals(false, loginTriggered)
                 waiter.resume()
             }
         }
@@ -700,5 +737,5 @@ class TestIntegration {
         // Wait waiter
         waiter.await(5000)
     }
- 
+
 }
