@@ -5,7 +5,6 @@ plugins {
 
 android {
     compileSdk compileVersion
-    buildToolsVersion buildToolsVersion
 
     defaultConfig {
         applicationId "com.iaphub.testintegration"
@@ -43,8 +42,8 @@ dependencies {
 
     androidTestImplementation project(path: ':iaphub')
     androidTestImplementation 'junit:junit:4.13.2'
-    androidTestImplementation 'androidx.test:runner:1.4.0'
-    androidTestImplementation 'androidx.test:rules:1.4.0'
-    androidTestImplementation 'androidx.test:core-ktx:1.4.0'
+    androidTestImplementation 'androidx.test:runner:1.6.0-alpha05'
+    androidTestImplementation 'androidx.test:rules:1.6.0-alpha02'
+    androidTestImplementation 'androidx.test:core-ktx:1.6.0-alpha04'
     androidTestImplementation 'net.jodah:concurrentunit:0.4.6'
 }

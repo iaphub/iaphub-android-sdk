@@ -2,7 +2,7 @@ package com.iaphub
 
 import androidx.annotation.VisibleForTesting
 
-@VisibleForTesting(otherwise = VisibleForTesting.NONE)
+@VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
 class SDKTesting(private val sdk: SDK) {
   // Disable/enable the lifecycle event
   var lifecycleEvent: Boolean? = null

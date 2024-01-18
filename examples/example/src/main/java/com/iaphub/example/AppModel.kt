@@ -3,10 +3,7 @@ package com.iaphub.example
 import android.util.Log
 import androidx.annotation.MainThread
 import androidx.lifecycle.MutableLiveData
-import com.iaphub.ActiveProduct
-import com.iaphub.IaphubError
-import com.iaphub.Iaphub
-import com.iaphub.Product
+import com.iaphub.*
 
 class AppModel {
 
@@ -72,11 +69,14 @@ class AppModel {
         this.restoreLoading.value = true
         Iaphub.restore { err, response ->
             Log.d("IAPHUB", "-> Restore, newPurchases: ${response?.newPurchases?.size}, transferredActiveProducts: ${response?.transferredActiveProducts?.size}")
-            if (response?.newPurchases?.size != null && response?.newPurchases?.size != 0) {
-                Log.d("IAPHUB", "-> Restore, newPurchase: ${response?.newPurchases.get(0)?.getData()}")
+
+            val newPurchase = response?.newPurchases?.getOrNull(0)
+            if (newPurchase != null) {
+                Log.d("IAPHUB", "-> Restore, newPurchase: ${newPurchase.getData()}")
             }
-            if (response?.transferredActiveProducts?.size != null && response?.transferredActiveProducts?.size != 0) {
-                Log.d("IAPHUB", "-> Restore, transferredActiveProduct: ${response?.transferredActiveProducts.get(0)?.getData()}")
+            val transferredActiveProduct = response?.transferredActiveProducts?.getOrNull(0)
+            if (transferredActiveProduct != null) {
+                Log.d("IAPHUB", "-> Restore, transferredActiveProduct: ${transferredActiveProduct.getData()}")
             }
             this.restoreLoading.value = false
             if (err != null) {

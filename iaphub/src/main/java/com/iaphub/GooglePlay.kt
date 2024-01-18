@@ -308,7 +308,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
             // Use first pricing phase as default
             var phaseList = subscriptionOfferDetails?.pricingPhases?.pricingPhaseList
             if (phaseList != null) {
-              val lastPricingPhase = phaseList?.elementAtOrNull(phaseList?.lastIndex)
+              val lastPricingPhase = phaseList.elementAtOrNull(phaseList.lastIndex)
               if (lastPricingPhase != null) {
                 data["price"] = lastPricingPhase.priceAmountMicros.toDouble() / 1000000
                 data["currency"] = lastPricingPhase.priceCurrencyCode
@@ -644,7 +644,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
   private fun processBuyRequest(sku: String?, err: IaphubError?, transaction: ReceiptTransaction?) {
     val buyRequest = this.buyRequest
     // If an sku if specified, process the buy request only if the sku match
-    if (buyRequest != null && buyRequest?.sku == sku) {
+    if (buyRequest != null && sku != null && buyRequest?.sku == sku) {
       this.buyRequest = null
       // Get product details
       this.getProductDetails(sku) { _, details ->

@@ -31,6 +31,30 @@ class TestIntegration {
         this.scenario.onActivity {
             // Start IAPHUB
             if (iaphubStarted == false) {
+                // Set testing options
+                Iaphub.testing.storeLibraryMock=true
+                Iaphub.testing.storeReady=true
+                Iaphub.testing.storeReadyTimeout = 2000
+                Iaphub.testing.lifecycleEvent=false
+                Iaphub.testing.logs=false
+                Iaphub.testing.mockedProductDetails = listOf(
+                    ProductDetails(mapOf(
+                        "sku" to "consumable",
+                        "price" to 1.99,
+                        "currency" to "USD",
+                        "localizedPrice" to "$1.99",
+                        "localizedTitle" to "Consumable",
+                        "localizedDescription" to "This is a consumable"
+                    )),
+                    ProductDetails(mapOf(
+                        "sku" to "renewable_subscription",
+                        "price" to 9.99,
+                        "currency" to "USD",
+                        "localizedPrice" to "$9.99",
+                        "localizedTitle" to "Renewable subscription",
+                        "localizedDescription" to "This is a renewable subscription"
+                    ))
+                )
                 iaphubStarted = true
                 context = it
                 Iaphub.start(context=it, appId="61718bfd9bf07f0c7d2357d1",  apiKey="Usaw9viZNrnYdNSwPIFFo7iUxyjK23K3", allowAnonymousPurchase=true)
@@ -52,29 +76,6 @@ class TestIntegration {
                 Log.d("IAPHUB", "-> Process deferred purchase")
                 this.deferredPurchases.add(transaction)
             }
-            // Set testing options
-            Iaphub.testing.storeLibraryMock=true
-            Iaphub.testing.storeReady=true
-            Iaphub.testing.lifecycleEvent=false
-            Iaphub.testing.logs=false
-            Iaphub.testing.mockedProductDetails = listOf(
-                ProductDetails(mapOf(
-                    "sku" to "consumable",
-                    "price" to 1.99,
-                    "currency" to "USD",
-                    "localizedPrice" to "$1.99",
-                    "localizedTitle" to "Consumable",
-                    "localizedDescription" to "This is a consumable"
-                )),
-                ProductDetails(mapOf(
-                    "sku" to "renewable_subscription",
-                    "price" to 9.99,
-                    "currency" to "USD",
-                    "localizedPrice" to "$9.99",
-                    "localizedTitle" to "Renewable subscription",
-                    "localizedDescription" to "This is a renewable subscription"
-                ))
-            )
             // Reset mock of requests
             Iaphub.testing.mockNetworkRequest(null)
             // Delete cache
@@ -90,10 +91,9 @@ class TestIntegration {
 
         // Mock billing ready
         Iaphub.testing.storeReady = false
-        Iaphub.testing.storeReadyTimeout = 2000
         // Mock network
         Iaphub.testing.mockNetworkRequest() { _, route, _ ->
-            if (route.contains("/user") && !route.contains("pricing")) {
+            if (route.contains("/user") && !route.contains("pricing") && !route.contains("receipt")) {
                 requestCount++
             }
             return@mockNetworkRequest null

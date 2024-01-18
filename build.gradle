@@ -1,15 +1,14 @@
 buildscript {
-    ext.kotlinVersion = '1.4.32'
-    ext.minVersion = 14
-    ext.compileVersion = 28
-    ext.buildToolsVersion = '30.0.2'
+    ext.kotlinVersion = '1.8.0'
+    ext.minVersion = 19
+    ext.compileVersion = 34
     repositories {
         mavenCentral()
         google()
     }
     dependencies {
         classpath "com.vanniktech:gradle-maven-publish-plugin:0.18.0"
-        classpath "com.android.tools.build:gradle:7.0.3"
+        classpath "com.android.tools.build:gradle:7.1.3"
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
     }
 }

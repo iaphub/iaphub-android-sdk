@@ -31,7 +31,7 @@ open class SDK: LifecycleObserver
   internal var onErrorListener: ((IaphubError) -> Unit)? = null
   internal var onReceiptListener: ((IaphubError?, Receipt?) -> Unit)? = null
 
-  @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+  @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
   var testing: SDKTesting = SDKTesting(this)
 
   /**
