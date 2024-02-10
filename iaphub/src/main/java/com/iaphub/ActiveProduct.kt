@@ -12,6 +12,8 @@ open class ActiveProduct : Product {
   val platform: String?
   // Android token
   val androidToken: String?
+  // If it is a sandbox transaction
+  val isSandbox: Boolean
   // If it has been purchased using a promo code
   val isPromo: Boolean
   // Promo code used for the purchase
@@ -46,6 +48,7 @@ open class ActiveProduct : Product {
     }
     this.platform = data["platform"] as? String
     this.isPromo = (data["isPromo"] as? Boolean) ?: false
+    this.isSandbox = (data["isSandbox"] as? Boolean) ?: false
     this.promoCode = data["promoCode"] as? String
     this.androidToken = data["androidToken"] as? String
     // The following properties are for subscriptions only
@@ -94,6 +97,7 @@ open class ActiveProduct : Product {
       "purchase" to this.purchase as? Any?,
       "purchaseDate" to Util.dateToIsoString(this.purchaseDate) as? Any?,
       "platform" to this.platform as? Any?,
+      "isSandbox" to this.isSandbox as? Any?,
       "isPromo" to this.isPromo as? Any?,
       "promoCode" to this.promoCode as? Any?,
       "originalPurchase" to this.originalPurchase as? Any?,

@@ -383,6 +383,7 @@ Iaphub.showManageSubscriptions({ (err: IHError?) in
 | expirationDate | `Date?` | Subscription expiration date |
 | isSubscriptionRenewable | `Boolean = false` | True if the auto-renewal is enabled |
 | isFamilyShare | `Boolean = false` | True if the subscription is shared by a family member (iOS subscriptions only) |
+| isSandbox | `Boolean = false` | True if sandbox transaction |
 | isPromo | `Boolean = false` | True if purchased using a promo code |
 | promoCode | `String?` | Promo code (Android: only available for subscriptions vanity codes, not available for one time codes) (iOS: the value is the offer reference name) |
 | originalPurchase | `String?` | Original purchase id of a renewable subscription (From IAPHUB) |
