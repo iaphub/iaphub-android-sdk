@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import androidx.core.content.ContextCompat.startActivity
 import com.android.billingclient.api.*
 import java.lang.Exception
@@ -32,7 +33,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
   private var restoredPurchases: List<Purchase>? = null
   private var purchaseQueue: Queue<Purchase>? = null
   private var lastReceipt: Receipt? = null
-  private var cachedSkusDetails: MutableMap<String, com.android.billingclient.api.ProductDetails> = mutableMapOf()
+  private var cachedProductQueries: MutableMap<String, ProductQuery> = mutableMapOf()
   private var isRestoring: Boolean = false
   private var isRefreshing: Boolean = false
   private var isStartingConnection: Boolean = false
@@ -116,25 +117,25 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
       }, 200)
       return
     }
-    // Get product from sku
-    this.getSkuDetails(sku) { err, skuDetails ->
+    // Get product query
+    this.getProductQuery(sku) { err, productQuery ->
       // Check error
-      if (skuDetails == null) {
+      if (productQuery == null) {
         this.buyRequest = null
-        return@getSkuDetails completion(err ?: IaphubError(IaphubErrorCode.unexpected), null)
+        return@getProductQuery completion(err ?: IaphubError(IaphubErrorCode.unexpected), null)
       }
       // Create billing flow params
       val billingFlowParams = BillingFlowParams.newBuilder()
       // Create product details prams
-      val productDetailsParams = BillingFlowParams.ProductDetailsParams.newBuilder().setProductDetails(skuDetails)
+      val productDetailsParams = BillingFlowParams.ProductDetailsParams.newBuilder().setProductDetails(productQuery.details)
       // We must set the offer token
-      val subscriptionOfferDetails = this.getSubscriptionOffer(skuDetails)
+      val subscriptionOfferDetails = productQuery.getSubscriptionOffer()
       if (subscriptionOfferDetails != null) {
         productDetailsParams.setOfferToken(subscriptionOfferDetails.offerToken)
       }
       billingFlowParams.setProductDetailsParamsList(listOf(productDetailsParams.build()))
       // Handle subscription replace options for subscriptions
-      if (skuDetails.productType == BillingClient.ProductType.SUBS && options["oldPurchaseToken"] != null) {
+      if (productQuery.details.productType == BillingClient.ProductType.SUBS && options["oldPurchaseToken"] != null) {
         val subscriptionUpdateParams = BillingFlowParams.SubscriptionUpdateParams.newBuilder()
         // Look for purchaseToken option
         val oldPurchaseToken = options["oldPurchaseToken"]
@@ -153,7 +154,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
           subscriptionUpdateParams.setReplaceProrationMode(BillingFlowParams.ProrationMode.DEFERRED)
         } else if (prorationMode != null) {
           this.buyRequest = null
-          return@getSkuDetails completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.proration_mode_invalid, "value: ${prorationMode}", mapOf("prorationMode" to prorationMode)), null)
+          return@getProductQuery completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.proration_mode_invalid, "value: ${prorationMode}", mapOf("prorationMode" to prorationMode)), null)
         }
         // Add subscription params to builder
         billingFlowParams.setSubscriptionUpdateParams(subscriptionUpdateParams.build())
@@ -280,22 +281,21 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
       }
     }
     // Get skus details
-    this.getSkusDetails(skus) { err, skusDetails ->
+    this.getProductQueries(skus) { err, productQueries ->
       // Check error
-      if (err != null || skusDetails == null) {
-        return@getSkusDetails completion(err ?: IaphubError(IaphubErrorCode.unexpected), null)
+      if (err != null || productQueries == null) {
+        return@getProductQueries completion(err ?: IaphubError(IaphubErrorCode.unexpected), null)
       }
       // Convert list to product details
-      val productsDetails: List<ProductDetails?> = skusDetails.map { details ->
+      val productsDetails: List<ProductDetails?> = productQueries.map { productQuery ->
         try {
           var data: MutableMap<String, Any?> = mutableMapOf()
-
           // Get general info
-          data["sku"] = details.productId
-          data["localizedTitle"] = details.title
-          data["localizedDescription"] = details.description
+          data["sku"] = productQuery.sku
+          data["localizedTitle"] = productQuery.details.title
+          data["localizedDescription"] = productQuery.details.description
           // Get consumable info
-          val oneTimePurchaseOfferDetails = details.oneTimePurchaseOfferDetails
+          val oneTimePurchaseOfferDetails = productQuery.details.oneTimePurchaseOfferDetails
           if (oneTimePurchaseOfferDetails != null) {
             data["price"] = oneTimePurchaseOfferDetails.priceAmountMicros.toDouble() / 1000000
             data["currency"] = oneTimePurchaseOfferDetails.priceCurrencyCode
@@ -304,7 +304,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
           // Get subscription info
           else {
             // Get offer
-            val subscriptionOfferDetails = this.getSubscriptionOffer(details)
+            val subscriptionOfferDetails = productQuery.getSubscriptionOffer()
             // Use first pricing phase as default
             var phaseList = subscriptionOfferDetails?.pricingPhases?.pricingPhaseList
             if (phaseList != null) {
@@ -551,20 +551,21 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
   private fun processPurchase(purchase: Purchase, date: Date, completion: () -> Unit) {
     // Get purchase token and sku
     val purchaseToken = purchase.purchaseToken
-    val sku = if (purchase.skus.isNotEmpty()) purchase.skus[0] else null
-    if (sku == null) {
+    val productId = if (purchase.products.isNotEmpty()) purchase.products[0] else null
+
+    if (productId == null) {
       return completion()
     }
     // Detect receipt context
     var context = "refresh"
-    if (this.buyRequest?.sku == sku) {
+    if (this.buyRequest?.productId == productId) {
       context = "purchase"
     }
     else if (this.restoredPurchases?.contains(purchase) == true) {
       context = "restore"
     }
     // Create receipt
-    val receipt = Receipt(token=purchaseToken, sku=sku, context=context)
+    val receipt = Receipt(token=purchaseToken, sku=productId, context=context)
     // Security to prevent the same token to be processed multiple times in a short interval
     if (
       context == "refresh" &&
@@ -583,7 +584,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
       // Update receipt properties
       receipt.processDate = Date()
       // Process buy request
-      this.processBuyRequest(sku, err, receiptTransaction)
+      this.processBuyRequest(productId, err, receiptTransaction)
       // Call completion
       completion()
     }
@@ -641,10 +642,11 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
    * Process buy request
    */
   @Synchronized
-  private fun processBuyRequest(sku: String?, err: IaphubError?, transaction: ReceiptTransaction?) {
+  private fun processBuyRequest(productId: String?, err: IaphubError?, transaction: ReceiptTransaction?) {
     val buyRequest = this.buyRequest
     // If an sku if specified, process the buy request only if the sku match
-    if (buyRequest != null && sku != null && buyRequest?.sku == sku) {
+    if (buyRequest != null && productId != null && buyRequest?.productId == productId) {
+      val sku = buyRequest.sku
       this.buyRequest = null
       // Get product details
       this.getProductDetails(sku) { _, details ->
@@ -655,7 +657,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
       }
     }
     // Otherwise process the buy request with no sku (it's an error)
-    else if (buyRequest != null && sku == null) {
+    else if (buyRequest != null && productId == null) {
       this.buyRequest = null
       buyRequest.completion.invoke(err, transaction)
     }
@@ -862,11 +864,11 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
   }
 
   /**
-   * Get list of sku details
+   * Get list of product queries
    */
-  private fun getSkusDetails(skus: List<String>, completion: (IaphubError?, List<com.android.billingclient.api.ProductDetails>?) -> Unit) {
+  private fun getProductQueries(skus: List<String>, completion: (IaphubError?, List<ProductQuery>?) -> Unit) {
     // Get subscriptions
-    this.getSkusDetails(skus, BillingClient.ProductType.SUBS) one@ { err, subs ->
+    this.getProductQueries(skus, BillingClient.ProductType.SUBS) one@ { err, subs ->
       // Check error
       if (err != null) {
         return@one completion(err, null)
@@ -876,7 +878,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
         return@one completion(null, subs)
       }
       // Get in-app products
-      this.getSkusDetails(skus, BillingClient.ProductType.INAPP) two@ { err, products ->
+      this.getProductQueries(skus, BillingClient.ProductType.INAPP) two@ { err, products ->
         // Check error
         if (err != null) {
           return@two completion(err, null)
@@ -890,14 +892,14 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
   /**
    * Get list of sku details from cache
    */
-  private fun getSkusDetailsFromCache(skus: List<String>): List<com.android.billingclient.api.ProductDetails> {
-    return skus.map { sku -> this.cachedSkusDetails.get(sku) }.filterNotNull()
+  private fun getProductQueriesFromCache(skus: List<String>): List<ProductQuery> {
+    return skus.map { sku -> this.cachedProductQueries.get(sku) }.filterNotNull()
   }
 
   /**
-   * Get list of sku details
+   * Get list of product queries
    */
-  private fun getSkusDetails(skus: List<String>, type: String, completion: (IaphubError?, List<com.android.billingclient.api.ProductDetails>?) -> Unit) {
+  private fun getProductQueries(skus: List<String>, type: String, completion: (IaphubError?, List<ProductQuery>?) -> Unit) {
     // Return empty list if skus list empty
     if (skus.isEmpty()) {
       return completion(null, emptyList())
@@ -906,67 +908,61 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
     this.whenBillingReady { err, billing ->
       // Return an error if the billing isn't ready
       if (err != null || billing == null) {
-        return@whenBillingReady completion(err, getSkusDetailsFromCache(skus))
+        return@whenBillingReady completion(err, getProductQueriesFromCache(skus))
       }
       // Build request
-      val productsList = skus.map { sku ->
-        QueryProductDetailsParams.Product.newBuilder()
-          .setProductId(sku)
-          .setProductType(type)
-          .build()
-      }
+      val productsList = skus
+        .map { sku -> sku.substringBefore(":") }
+        .distinct()
+        .map { sku ->
+          QueryProductDetailsParams.Product.newBuilder()
+            .setProductId(sku)
+            .setProductType(type)
+            .build()
+        }
       val params = QueryProductDetailsParams.newBuilder().setProductList(productsList)
       billing.queryProductDetailsAsync(params.build()) { billingResult, productsDetailsList ->
         // Check response code
         if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
           // Otherwise return an error
-          return@queryProductDetailsAsync completion(this.getErrorFromBillingResult(billingResult, "queryProductDetailsAsync"), getSkusDetailsFromCache(skus))
+          return@queryProductDetailsAsync completion(this.getErrorFromBillingResult(billingResult, "queryProductDetailsAsync"), getProductQueriesFromCache(skus))
         }
-        // Cache skus details
-        skus.forEach { sku ->
-          val productDetails = productsDetailsList?.find { item -> item.productId == sku }
+        // Create product queries list
+        val productQueries = skus.map { sku ->
+          val productDetails = productsDetailsList?.find { item -> item.productId == sku.substringBefore(":") }
 
           if (productDetails != null) {
-            this.cachedSkusDetails.put(sku, productDetails)
-          } else {
-            this.cachedSkusDetails.remove(sku)
+            val productQuery = ProductQuery(sku, productDetails)
+
+            this.cachedProductQueries.put(sku, productQuery)
+            return@map productQuery
           }
-        }
+          this.cachedProductQueries.remove(sku)
+          return@map null
+        }.filterNotNull()
         // Return list
-        completion(null, productsDetailsList)
+        completion(null, productQueries)
       }
     }
   }
 
   /**
-   * Get sku details
-   */
-  private fun getSkuDetails(sku: String, completion: (IaphubError?, com.android.billingclient.api.ProductDetails?) -> Unit) {
-    this.getSkusDetails(listOf(sku)) { err, skusDetails ->
+  * Get product query
+  */
+  private fun getProductQuery(sku: String, completion: (IaphubError?, ProductQuery?) -> Unit) {
+    this.getProductQueries(listOf(sku)) { err, productQueries ->
       // Check error
-      if (skusDetails == null) {
-        return@getSkusDetails completion(err ?: IaphubError(IaphubErrorCode.unexpected), null)
+      if (productQueries == null) {
+        return@getProductQueries completion(err ?: IaphubError(IaphubErrorCode.unexpected), null)
       }
-      // Search for product
-      val skuDetails = skusDetails.find { product -> product.productId == sku }
-      if (skuDetails == null) {
-        return@getSkusDetails completion(IaphubError(error=IaphubErrorCode.product_not_available, params=mapOf("sku" to sku)), null)
+      // Search for product query
+      val productQuery = productQueries.find { productQuery -> productQuery.sku == sku }
+      if (productQuery == null) {
+        return@getProductQueries completion(IaphubError(error=IaphubErrorCode.product_not_available, params=mapOf("sku" to sku)), null)
       }
-      // Return product
-      completion(null, skuDetails)
+      // Return product query
+      completion(null, productQuery)
     }
-  }
-
-  /**
-   * Get the subscription offer for the user
-   */
-  private fun getSubscriptionOffer(details: com.android.billingclient.api.ProductDetails):  com.android.billingclient.api.ProductDetails.SubscriptionOfferDetails? {
-    // The first index (0) should contain the latest offer, then the previous offers and the last one is a base offer with no phases
-    // When an offer has been used, all the other offers should disappear, leaving the base offer only
-    val lastIndex = details.subscriptionOfferDetails?.lastIndex
-    val index = if (lastIndex != null && lastIndex > 0) lastIndex - 1 else 0
-
-    return details.subscriptionOfferDetails?.elementAtOrNull(index)
   }
 
 }
