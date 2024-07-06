@@ -62,7 +62,6 @@ internal enum class IaphubNetworkErrorCode(override val message: String): Iaphub
   url_invalid("url invalid"),
   request_failed("request failed"),
   billing_request_failed("a request by the google play billing failed"),
-  billing_request_timeout("a request by the google play billing failed with a timeout"),
   response_empty("response empty"),
   response_parsing_failed("response parsing failed"),
   unknown_exception("unknown exception")

@@ -820,9 +820,9 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
       errorType = IaphubErrorCode.network_error
       subErrorType = IaphubNetworkErrorCode.billing_request_failed
     }
-    else if (responseCode == BillingClient.BillingResponseCode.SERVICE_TIMEOUT) {
+    else if (responseCode == BillingClient.BillingResponseCode.NETWORK_ERROR) {
       errorType = IaphubErrorCode.network_error
-      subErrorType = IaphubNetworkErrorCode.billing_request_timeout
+      subErrorType = IaphubNetworkErrorCode.billing_request_failed
     }
     else if (responseCode == BillingClient.BillingResponseCode.USER_CANCELED) {
       errorType = IaphubErrorCode.user_cancelled
