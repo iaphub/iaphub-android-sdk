@@ -774,9 +774,9 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
         return@whenBillingReady completion(err, listOf())
       }
       // Get subscription purchases
-      billing.queryPurchasesAsync(BillingClient.SkuType.SUBS) { _, subscriptionPurchases ->
+      billing.queryPurchasesAsync(QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.SUBS).build()) { _, subscriptionPurchases ->
         // Get product purchases
-        billing.queryPurchasesAsync(BillingClient.SkuType.INAPP) { _, productPurchases ->
+        billing.queryPurchasesAsync(QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.INAPP).build()) { _, productPurchases ->
           // Return purchases
           completion(null, subscriptionPurchases + productPurchases)
         }
