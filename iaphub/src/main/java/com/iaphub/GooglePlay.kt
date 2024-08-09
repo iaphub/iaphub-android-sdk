@@ -145,13 +145,15 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
         // Look for prorationMode option
         val prorationMode = options["prorationMode"]
         if (prorationMode == "immediate_with_time_proration") {
-          subscriptionUpdateParams.setReplaceProrationMode(BillingFlowParams.ProrationMode.IMMEDIATE_WITH_TIME_PRORATION)
+          subscriptionUpdateParams.setSubscriptionReplacementMode(BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.WITH_TIME_PRORATION)
+        } else if (prorationMode == "immediate_and_charge_full_price") {
+          subscriptionUpdateParams.setSubscriptionReplacementMode(BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.CHARGE_FULL_PRICE)
         } else if (prorationMode == "immediate_and_charge_prorated_price") {
-          subscriptionUpdateParams.setReplaceProrationMode(BillingFlowParams.ProrationMode.IMMEDIATE_AND_CHARGE_PRORATED_PRICE)
+          subscriptionUpdateParams.setSubscriptionReplacementMode(BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.CHARGE_PRORATED_PRICE)
         } else if (prorationMode == "immediate_without_proration") {
-          subscriptionUpdateParams.setReplaceProrationMode(BillingFlowParams.ProrationMode.IMMEDIATE_WITHOUT_PRORATION)
+          subscriptionUpdateParams.setSubscriptionReplacementMode(BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.WITHOUT_PRORATION)
         } else if (prorationMode == "deferred") {
-          subscriptionUpdateParams.setReplaceProrationMode(BillingFlowParams.ProrationMode.DEFERRED)
+          subscriptionUpdateParams.setSubscriptionReplacementMode(BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.DEFERRED)
         } else if (prorationMode != null) {
           this.buyRequest = null
           return@getProductQuery completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.proration_mode_invalid, "value: ${prorationMode}", mapOf("prorationMode" to prorationMode)), null)
