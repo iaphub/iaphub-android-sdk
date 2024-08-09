@@ -124,50 +124,57 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
         this.buyRequest = null
         return@getProductQuery completion(err ?: IaphubError(IaphubErrorCode.unexpected), null)
       }
-      // Create billing flow params
-      val billingFlowParams = BillingFlowParams.newBuilder()
-      // Create product details prams
-      val productDetailsParams = BillingFlowParams.ProductDetailsParams.newBuilder().setProductDetails(productQuery.details)
-      // We must set the offer token
-      val subscriptionOfferDetails = productQuery.getSubscriptionOffer()
-      if (subscriptionOfferDetails != null) {
-        productDetailsParams.setOfferToken(subscriptionOfferDetails.offerToken)
+      try {
+        // Create billing flow params
+        val billingFlowParams = BillingFlowParams.newBuilder()
+        // Create product details prams
+        val productDetailsParams = BillingFlowParams.ProductDetailsParams.newBuilder()
+          .setProductDetails(productQuery.details)
+        // We must set the offer token
+        val subscriptionOfferDetails = productQuery.getSubscriptionOffer()
+        if (subscriptionOfferDetails != null) {
+          productDetailsParams.setOfferToken(subscriptionOfferDetails.offerToken)
+        }
+        billingFlowParams.setProductDetailsParamsList(listOf(productDetailsParams.build()))
+        // Handle subscription replace options for subscriptions
+        if (productQuery.details.productType == BillingClient.ProductType.SUBS && options["oldPurchaseToken"] != null) {
+          val subscriptionUpdateParams = BillingFlowParams.SubscriptionUpdateParams.newBuilder()
+          // Look for purchaseToken option
+          val oldPurchaseToken = options["oldPurchaseToken"]
+          if (oldPurchaseToken != null) {
+            subscriptionUpdateParams.setOldPurchaseToken(oldPurchaseToken)
+          }
+          // Look for prorationMode option
+          val prorationMode = options["prorationMode"]
+          if (prorationMode == "immediate_with_time_proration") {
+            subscriptionUpdateParams.setSubscriptionReplacementMode(BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.WITH_TIME_PRORATION)
+          } else if (prorationMode == "immediate_and_charge_full_price") {
+            subscriptionUpdateParams.setSubscriptionReplacementMode(BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.CHARGE_FULL_PRICE)
+          } else if (prorationMode == "immediate_and_charge_prorated_price") {
+            subscriptionUpdateParams.setSubscriptionReplacementMode(BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.CHARGE_PRORATED_PRICE)
+          } else if (prorationMode == "immediate_without_proration") {
+            subscriptionUpdateParams.setSubscriptionReplacementMode(BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.WITHOUT_PRORATION)
+          } else if (prorationMode == "deferred") {
+            subscriptionUpdateParams.setSubscriptionReplacementMode(BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.DEFERRED)
+          } else if (prorationMode != null) {
+            this.buyRequest = null
+            return@getProductQuery completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.proration_mode_invalid, "value: ${prorationMode}", mapOf("prorationMode" to prorationMode)), null)
+          }
+          // Add subscription params to builder
+          billingFlowParams.setSubscriptionUpdateParams(subscriptionUpdateParams.build())
+        }
+        // Launch billing flow (must be executed on the main thread according to the doc)
+        val builtBillingFlowParams = billingFlowParams.build()
+        this.launchBillingFlow(activity, builtBillingFlowParams) { err ->
+          if (err != null) {
+            this.buyRequest = null
+            completion(err, null)
+          }
+        }
       }
-      billingFlowParams.setProductDetailsParamsList(listOf(productDetailsParams.build()))
-      // Handle subscription replace options for subscriptions
-      if (productQuery.details.productType == BillingClient.ProductType.SUBS && options["oldPurchaseToken"] != null) {
-        val subscriptionUpdateParams = BillingFlowParams.SubscriptionUpdateParams.newBuilder()
-        // Look for purchaseToken option
-        val oldPurchaseToken = options["oldPurchaseToken"]
-        if (oldPurchaseToken != null) {
-          subscriptionUpdateParams.setOldPurchaseToken(oldPurchaseToken)
-        }
-        // Look for prorationMode option
-        val prorationMode = options["prorationMode"]
-        if (prorationMode == "immediate_with_time_proration") {
-          subscriptionUpdateParams.setSubscriptionReplacementMode(BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.WITH_TIME_PRORATION)
-        } else if (prorationMode == "immediate_and_charge_full_price") {
-          subscriptionUpdateParams.setSubscriptionReplacementMode(BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.CHARGE_FULL_PRICE)
-        } else if (prorationMode == "immediate_and_charge_prorated_price") {
-          subscriptionUpdateParams.setSubscriptionReplacementMode(BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.CHARGE_PRORATED_PRICE)
-        } else if (prorationMode == "immediate_without_proration") {
-          subscriptionUpdateParams.setSubscriptionReplacementMode(BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.WITHOUT_PRORATION)
-        } else if (prorationMode == "deferred") {
-          subscriptionUpdateParams.setSubscriptionReplacementMode(BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.DEFERRED)
-        } else if (prorationMode != null) {
-          this.buyRequest = null
-          return@getProductQuery completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.proration_mode_invalid, "value: ${prorationMode}", mapOf("prorationMode" to prorationMode)), null)
-        }
-        // Add subscription params to builder
-        billingFlowParams.setSubscriptionUpdateParams(subscriptionUpdateParams.build())
-      }
-      // Launch billing flow (must be executed on the main thread according to the doc)
-      val builtBillingFlowParams = billingFlowParams.build()
-      this.launchBillingFlow(activity, builtBillingFlowParams) { err ->
-        if (err != null) {
-          this.buyRequest = null
-          completion(err, null)
-        }
+      catch (err: Exception) {
+        this.buyRequest = null
+        completion(IaphubError(IaphubErrorCode.unexpected, null, err.message), null)
       }
     }
   }
