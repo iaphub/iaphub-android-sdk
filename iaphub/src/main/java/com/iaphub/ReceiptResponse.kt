@@ -19,7 +19,7 @@ internal class ReceiptResponse {
     }
   }
 
-  fun findTransactionBySku(sku: String, filter: String? = null, useSubscriptionRenewalProductSku: Boolean = false): ReceiptTransaction? {
+  fun findTransactionBySku(sku: String, filter: String? = null, useSubscriptionRenewalProductSku: Boolean = false, ignoreAndroidBasePlanId: Boolean = false): ReceiptTransaction? {
     var transactions = mutableListOf<ReceiptTransaction>()
 
     if (filter == "new" || filter == null) {
@@ -34,10 +34,15 @@ internal class ReceiptResponse {
     }
 
     return transactions.find { transaction ->
+      var transactionSku: String? = transaction.sku
+
       if (useSubscriptionRenewalProductSku) {
-        return@find transaction.subscriptionRenewalProductSku == sku
+        transactionSku = transaction.subscriptionRenewalProductSku
       }
-      return@find transaction.sku == sku
+      if (ignoreAndroidBasePlanId && transactionSku != null) {
+        transactionSku = transactionSku.substringBefore(":")
+      }
+      return@find transactionSku == sku
     }
   }
 }

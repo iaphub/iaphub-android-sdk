@@ -395,7 +395,7 @@ open class SDK: LifecycleObserver
               // If there is no error, try to find the transaction
               if (error == null) {
                 // Look first in the new transactions
-                transaction = receiptResponse.findTransactionBySku(sku = receipt.sku, filter = "new")
+                transaction = receiptResponse.findTransactionBySku(sku = receipt.sku, filter = "new", ignoreAndroidBasePlanId = true)
                 // If the transaction hasn't been found
                 if (transaction == null) {
                   // If it is purchase, look for a product change
@@ -403,12 +403,13 @@ open class SDK: LifecycleObserver
                     transaction = receiptResponse.findTransactionBySku(
                       sku = receipt.sku,
                       filter = "new",
-                      useSubscriptionRenewalProductSku = true
+                      useSubscriptionRenewalProductSku = true,
+                      ignoreAndroidBasePlanId = true
                     )
                   }
                   // Otherwise look in the old transactions
                   else {
-                    transaction = receiptResponse.findTransactionBySku(sku = receipt.sku, filter = "old")
+                    transaction = receiptResponse.findTransactionBySku(sku = receipt.sku, filter = "old", ignoreAndroidBasePlanId = true)
                   }
                 }
                 // If it is a purchase, check for errors
@@ -416,7 +417,7 @@ open class SDK: LifecycleObserver
                   // If we didn't find any transaction, we have an error
                   if (transaction == null) {
                     // Check if it is because of a subscription already active
-                    val oldTransaction = receiptResponse.findTransactionBySku(sku = receipt.sku, filter = "old")
+                    val oldTransaction = receiptResponse.findTransactionBySku(sku = receipt.sku, filter = "old", ignoreAndroidBasePlanId = true)
                     if ((oldTransaction?.type == "non_consumable") || (oldTransaction?.subscriptionState != null && oldTransaction?.subscriptionState != "expired")) {
                       // Check if the transaction belongs to a different user
                       if (oldTransaction.user != null && user.iaphubId != null && oldTransaction.user != user.iaphubId) {
