@@ -18,6 +18,7 @@ internal enum class IaphubErrorCode(override val message: String): IaphubErrorPr
   receipt_failed("Receipt validation failed, receipt processing will be automatically retried if possible"),
   cross_platform_conflict("Cross platform conflict detected, an active subscription from another platform has been detected"),
   product_already_purchased("Product already purchased, it is already an active product of the user"),
+  product_change_next_renewal("The product will be changed on the next renewal date"),
   user_conflict("The transaction is successful but it belongs to a different user, a restore might be needed"),
   transaction_not_found("Transaction not found, the product sku wasn't in the receipt, the purchase failed"),
   manage_subscriptions_unavailable("Manage subscriptions unavailable"),

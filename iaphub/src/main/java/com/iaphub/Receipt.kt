@@ -10,24 +10,33 @@ class Receipt {
   val sku: String
   // Receipt context
   val context: String
+  // Proration mode
+  val prorationMode: String?
   // Receipt is finished
   var isFinished: Boolean
   // Receipt process date
   var processDate: Date?
 
-  constructor(token: String, sku: String, context: String) {
+  constructor(token: String, sku: String, context: String, prorationMode: String? = null) {
     this.token = token
     this.sku = sku
     this.context = context
+    this.prorationMode = prorationMode
     this.isFinished = false
     this.processDate = null
   }
 
   fun getData(): Map<String, Any> {
-    return mapOf(
+    var data = mutableMapOf(
       "token" to this.token as Any,
       "sku" to this.sku as Any,
       "context" to this.context as Any
     )
+
+    if (this.prorationMode != null) {
+      data["prorationMode"] = this.prorationMode as Any
+    }
+
+    return data
   }
 }

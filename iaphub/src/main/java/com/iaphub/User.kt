@@ -125,6 +125,11 @@ internal class User {
             if (subscriptionToReplace != null) {
               options["oldPurchaseToken"] = subscriptionToReplace.androidToken
             }
+            // Check if the product is already going to be replaced on next renewal date
+            val subscriptionRenewalProduct = this.activeProducts.find { item -> item.subscriptionRenewalProductSku == sku && item.subscriptionState == "active" }
+            if (subscriptionRenewalProduct != null) {
+              return@getProductBySku completion(IaphubError(IaphubErrorCode.product_change_next_renewal, params = mapOf("sku" to sku)), null)
+            }
           }
         }
         // Launch purchase

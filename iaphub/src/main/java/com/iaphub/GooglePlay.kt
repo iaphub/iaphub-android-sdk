@@ -27,7 +27,6 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
   private var onReceipt: ((Receipt, (IaphubError?, Boolean, ReceiptTransaction?) -> Unit) -> Unit)? = null
   private var onBillingReady: MutableList<(IaphubError?, BillingClient?) -> Unit> = mutableListOf()
   private var onBillingReadyTimer: Timer? = null
-  private var onDeferredSubscriptionReplace: ((purchaseToken: String, newSku: String, (IaphubError?, ReceiptTransaction?) -> Unit) -> Unit)? = null
   private var billing: BillingClient? = null
   private var buyRequest: BuyRequest? = null
   private var restoredPurchases: List<Purchase>? = null
@@ -54,8 +53,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
   @Synchronized
   override fun start(
     context: Context,
-    onReceipt: (Receipt, (IaphubError?, Boolean, ReceiptTransaction?) -> Unit) -> Unit,
-    onDeferredSubscriptionReplace: (purchaseToken: String, newSku: String, (IaphubError?, ReceiptTransaction?) -> Unit) -> Unit
+    onReceipt: (Receipt, (IaphubError?, Boolean, ReceiptTransaction?) -> Unit) -> Unit
   ) {
     // Check it isn't already started
     if (this.billing != null) {
@@ -63,7 +61,6 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
     }
     // Save callbacks
     this.onReceipt = onReceipt
-    this.onDeferredSubscriptionReplace = onDeferredSubscriptionReplace
     // Create purchased transaction queue
     this.purchaseQueue = Queue() { item, completion ->
       this.processPurchase(item.data, item.date, completion)
@@ -467,7 +464,6 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
     }
     // Handle deferred subscription replace
     if (purchases == null) {
-      this.processDeferredSubscriptionReplace()
       return
     }
     // Process purchases
@@ -560,21 +556,29 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
   private fun processPurchase(purchase: Purchase, date: Date, completion: () -> Unit) {
     // Get purchase token and sku
     val purchaseToken = purchase.purchaseToken
-    val productId = if (purchase.products.isNotEmpty()) purchase.products[0] else null
+    var productId = if (purchase.products.isNotEmpty()) purchase.products[0] else null
 
     if (productId == null) {
       return completion()
     }
     // Detect receipt context
+    val buyRequest = this.buyRequest
     var context = "refresh"
-    if (this.buyRequest?.productId == productId) {
+    var prorationMode: String? = null
+
+    if (buyRequest != null && ((buyRequest.productId == productId) || buyRequest.options["prorationMode"] == "deferred")) {
       context = "purchase"
+      prorationMode = buyRequest.options["prorationMode"]
+      // Use the actual product ID for a deferred purchase
+      if (buyRequest.options["prorationMode"] == "deferred") {
+        productId = buyRequest.productId
+      }
     }
     else if (this.restoredPurchases?.contains(purchase) == true) {
       context = "restore"
     }
     // Create receipt
-    val receipt = Receipt(token=purchaseToken, sku=productId, context=context)
+    val receipt = Receipt(token=purchaseToken, sku=productId, context=context, prorationMode=prorationMode)
     // Security to prevent the same token to be processed multiple times in a short interval
     if (
       context == "refresh" &&
@@ -626,24 +630,6 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
           completeProcess(err, receiptTransaction)
         }
       }
-    }
-  }
-
-  /**
-   * Process deferred subscription replace
-   */
-  @Synchronized
-  private fun processDeferredSubscriptionReplace() {
-    val buyRequest = this.buyRequest
-    var oldPurchaseToken = buyRequest?.options?.get("oldPurchaseToken")
-
-    if (buyRequest != null && buyRequest.options["prorationMode"] == "deferred" && oldPurchaseToken != null) {
-      this.onDeferredSubscriptionReplace?.let { it(oldPurchaseToken, buyRequest.sku) { err, transaction ->
-        this.processBuyRequest(buyRequest.sku, err, transaction)
-      }}
-    }
-    else {
-      this.processBuyRequest(null, IaphubError(IaphubErrorCode.unexpected), null)
     }
   }
 

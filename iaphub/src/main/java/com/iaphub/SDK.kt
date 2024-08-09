@@ -445,43 +445,6 @@ open class SDK: LifecycleObserver
             callFinish()
           }
         }
-      },
-      onDeferredSubscriptionReplace={ purchaseToken, newSku, completion ->
-        // Check the sdk is started
-        val user = this.user
-        if (user == null) {
-          return@start completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.start_missing), null)
-        }
-        // Get subscription
-        val subscription = user.activeProducts.find { item -> item.androidToken == purchaseToken }
-        if (subscription == null) {
-          return@start completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.subscription_replace_failed, "subscription to replace not found"), null)
-        }
-        // Create receipt transaction
-        val data = subscription.getData() as? MutableMap<String, Any?>
-        if (data == null) {
-          return@start completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.subscription_replace_failed,"subscription to replace data cast failed"), null)
-        }
-        data["subscriptionRenewalProduct"] = subscription.id
-        data["subscriptionRenewalProductSku"] = newSku
-        // Check purchase
-        if (subscription.purchase == null) {
-          // Trigger an error but do not return it
-          IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.subscription_replace_failed,"purchase of subscription to replace not found")
-          // Complete transaction anyway
-          return@start completion(null, ReceiptTransaction(data))
-        }
-        // Call API to update subscriptionRenewalProductSku
-        user.setSubscriptionRenewalProduct(subscription.purchase, newSku) { _, response ->
-          // Update webhook status
-          data["webhookStatus"] = response?.get("webhookStatus")
-          // Reset user cache (because the post receipt date hasn't been updated)
-          user.resetCache()
-          // Refresh user
-          user.refresh() { _, _, _ ->
-            completion(null, ReceiptTransaction(data))
-          }
-        }
       }
     )
     // Refresh store
