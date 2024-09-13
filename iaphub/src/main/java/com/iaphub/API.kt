@@ -95,18 +95,6 @@ internal class API {
   }
 
   /*
-   * Post pricing
-   */
-  fun postPricing(pricing: Map<String, Any>, completion: (IaphubError?) -> Unit) {
-    this.network.send(
-      type="POST",
-      route="/app/${this.user.sdk.appId}/user/${this.user.id}/pricing",
-      params=pricing,
-      completion={ err, _ -> completion(err)}
-    )
-  }
-
-  /*
    * Edit purchase
    */
   fun editPurchase(purchaseId: String, params: Map<String, Any>, completion: (IaphubError?, Map<String, Any>?) -> Unit) {

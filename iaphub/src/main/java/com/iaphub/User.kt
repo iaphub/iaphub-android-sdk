@@ -16,8 +16,6 @@ internal class User {
   internal var filteredProductsForSale: List<Product> = listOf()
   // Active products of the user
   internal var activeProducts: List<ActiveProduct> = listOf()
-  // Pricings
-  internal var pricings: List<ProductPricing> = listOf()
   // Latest user fetch date
   internal var fetchDate: Date? = null
 
@@ -422,26 +420,75 @@ internal class User {
   }
 
   /*
+   * Load receipt pricings
+   */
+  fun loadReceiptPricings(receipt: Receipt, completion: () -> Unit) {
+    // Get receipt sku + skus of same group
+    val allProducts: List<Product> = productsForSale + activeProducts
+    var skus = emptyList<String>()
+    // Look if we can find product
+    val receiptProduct = allProducts.find { product -> receipt.sku.substringBefore(":") == product.sku.substringBefore(":") }
+    // If we can, also add the products from the same group
+    if (receiptProduct != null) {
+      val productsSameGroup = allProducts.filter { item -> item.group != null && item.group == receiptProduct.group && item.sku != receiptProduct.sku }.take(20)
+      skus = listOf(receiptProduct.sku) + productsSameGroup.map { item -> item.sku }
+    }
+    // Otherwise only use the sku from the receipt
+    else {
+      skus = listOf(receipt.sku)
+    }
+    // Get products details
+    this.sdk.store?.getProductsDetails(skus) { _, productsDetails ->
+      // Add pricings of the skus on the receipt
+      receipt.pricings = productsDetails?.mapNotNull { productDetails ->
+        val price = productDetails.price
+        val currency = productDetails.currency
+        val product = allProducts.find { product -> product.sku == productDetails.sku }
+
+        if (currency != null && price != null) {
+          ProductPricing(
+            id = product?.id,
+            sku = productDetails.sku,
+            price = price,
+            currency = currency,
+            introPrice = productDetails.subscriptionIntroPhases?.firstOrNull()?.price
+          )
+        } else {
+          null
+        }
+      } ?: listOf()
+      // Call completion
+      completion()
+    }
+  }
+
+  /*
    * Post receipt
    */
   fun postReceipt(receipt: Receipt, completion: (IaphubError?, ReceiptResponse?) -> Unit) {
-    this.api.postReceipt(receipt.getData()) { err, data ->
-      // Check for error
-      if (err != null || data == null) {
-        return@postReceipt completion(err ?: IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.post_receipt_data_missing), null)
+    // Load receipt pricings
+    this.loadReceiptPricings(receipt) { ->
+      // Post receipt
+      this.api.postReceipt(receipt.getData()) { err, data ->
+        // Check for error
+        if (err != null || data == null) {
+          completion(err ?: IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.post_receipt_data_missing), null)
+        }
+        else {
+          // Update updateDate
+          this.updateDate = Date()
+          // Update receipt post date
+          this.receiptPostDate = Date()
+          // Create receipt response
+          val response = ReceiptResponse(data)
+          // If it is an anonymous user, enable the server login if a new transaction is detected
+          if (this.isAnonymous() && response.status == "success" && response.newTransactions?.isEmpty() == false) {
+            this.enableServerLogin()
+          }
+          // Parse and return receipt response
+          completion(null, response)
+        }
       }
-      // Update updateDate
-      this.updateDate = Date()
-      // Update receipt post date
-      this.receiptPostDate = Date()
-      // Create receipt response
-      val response = ReceiptResponse(data)
-      // If it is an anonymous user, enable the server login if a new transaction is detected
-      if (this.isAnonymous() && response.status == "success" && response.newTransactions?.isEmpty() == false) {
-        this.enableServerLogin()
-      }
-      // Parse and return receipt response
-      completion(null, response)
     }
   }
 
@@ -575,7 +622,6 @@ internal class User {
       data.putAll(mapOf(
         "id" to this.id as Any,
         "fetchDate" to Util.dateToIsoString(this.fetchDate),
-        "pricings" to this.pricings.map { pricing -> pricing.getData() },
         "isServerLoginEnabled" to this.isServerLoginEnabled,
         "cacheVersion" to Config.cacheVersion
       ))
@@ -621,11 +667,8 @@ internal class User {
       if (this.isInitialized && !this.sameProducts(newData, oldData)) {
         isUpdated = true
       }
-      // Update pricing
-      this.updatePricings { _ ->
-        // No need to throw an error if the pricing update fails, the system can work without it
-        completion(null, isUpdated)
-      }
+      // Call completion
+      completion(null, isUpdated)
     }
   }
 
@@ -730,11 +773,8 @@ internal class User {
       if (recoveredProducts.isNotEmpty()) {
         // Trigger onUserUpdate
         this.onUserUpdate?.let { it() }
-        // Update pricings
-        this.updatePricings { _ ->
-          // Call completion
-          completion(true)
-        }
+        // Call completion
+        completion(true)
       }
       // Otherwise just call the completion
       else {
@@ -765,7 +805,6 @@ internal class User {
   private fun reset() {
     this.productsForSale = listOf()
     this.activeProducts = listOf()
-    this.pricings = listOf()
     this.fetchDate = null
     this.receiptPostDate = null
     this.updateDate = null
@@ -871,14 +910,6 @@ internal class User {
             params=mapOf("item" to item)
           )
         }
-        this.pricings = Util.parseItems<ProductPricing>(jsonMap["pricings"]) { err, item ->
-          IaphubError(
-            IaphubErrorCode.unexpected,
-            IaphubUnexpectedErrorCode.get_cache_data_item_parsing_failed,
-            message="issue on pricing\n\n${err.stackTraceToString()}",
-            params=mapOf("item" to item)
-          )
-        }
         this.isServerLoginEnabled = jsonMap["isServerLoginEnabled"] as? Boolean ?: false
       }
       completion()
@@ -902,57 +933,6 @@ internal class User {
         key = "${prefix}_${this.sdk.appId}",
         value = jsonString
       )
-    }
-  }
-
-  /*
-   * Update pricings
-   */
-  private fun updatePricings(completion: (IaphubError?) -> Unit) {
-    val products = this.productsForSale + this.activeProducts
-    // Convert the products to an array of product pricings
-    val pricings = products.map { product ->
-      val price = product.price
-      val currency = product.currency
-
-      if (price != null && currency != null) {
-        return@map ProductPricing(id=product.id, price=price, currency=currency, introPrice=product.subscriptionIntroPhases?.elementAtOrNull(0)?.price)
-      }
-      return@map null
-    }.filterNotNull()
-    // Compare latest pricing with the previous one
-    val samePricings = pricings.filter { newPricing ->
-      // Look if we already have the pricing in memory
-      val pricingFound = this.pricings.find { oldPricing ->
-        if (oldPricing.id == newPricing.id &&
-            oldPricing.price == newPricing.price &&
-            oldPricing.currency == newPricing.currency &&
-            oldPricing.introPrice == newPricing.introPrice) {
-              return@find true
-        }
-        return@find false
-      }
-      return@filter pricingFound != null
-    }
-    // No need to send a request if the array of pricings is empty
-    if (pricings.isEmpty()) {
-      return completion(null)
-    }
-    // No need to send a request if the pricing is the same (except if caching disabled for testing)
-    if (samePricings.size == pricings.size && this.sdk.testing.pricingCache != false) {
-      return completion(null)
-    }
-    // Post pricing
-    val pricingsData: List<Map<String, Any>> = pricings.map { pricing -> pricing.getData()}
-    this.api.postPricing(mapOf("products" to pricingsData)) { err ->
-      // Check error
-      if (err != null) {
-        return@postPricing completion(err)
-      }
-      // Update pricings
-      this.pricings = pricings
-      // Call completion
-      completion(null)
     }
   }
 

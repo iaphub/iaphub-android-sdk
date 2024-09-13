@@ -16,6 +16,8 @@ class Receipt {
   var isFinished: Boolean
   // Receipt process date
   var processDate: Date?
+  // Pricings
+  var pricings: List<ProductPricing> = listOf()
 
   constructor(token: String, sku: String, context: String, prorationMode: String? = null) {
     this.token = token
@@ -30,7 +32,8 @@ class Receipt {
     var data = mutableMapOf(
       "token" to this.token as Any,
       "sku" to this.sku as Any,
-      "context" to this.context as Any
+      "context" to this.context as Any,
+      "pricings" to this.pricings.map { pricing -> pricing.getData() }
     )
 
     if (this.prorationMode != null) {
