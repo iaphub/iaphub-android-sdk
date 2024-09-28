@@ -18,6 +18,8 @@ class Receipt {
   var processDate: Date?
   // Pricings
   var pricings: List<ProductPricing> = listOf()
+  // Purchase intent id
+  var purchaseIntent: String? = null
 
   constructor(token: String, sku: String, context: String, prorationMode: String? = null) {
     this.token = token
@@ -38,6 +40,10 @@ class Receipt {
 
     if (this.prorationMode != null) {
       data["prorationMode"] = this.prorationMode as Any
+    }
+
+    if (this.purchaseIntent != null) {
+      data["purchaseIntent"] = this.purchaseIntent as Any
     }
 
     return data

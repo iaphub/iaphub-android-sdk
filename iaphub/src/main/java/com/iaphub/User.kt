@@ -16,6 +16,8 @@ internal class User {
   internal var filteredProductsForSale: List<Product> = listOf()
   // Active products of the user
   internal var activeProducts: List<ActiveProduct> = listOf()
+  // Paywall id
+  internal var paywallId: String? = null
   // Latest user fetch date
   internal var fetchDate: Date? = null
 
@@ -52,6 +54,8 @@ internal class User {
   internal var enableDeferredPurchaseListener: Boolean = true
   // Last error returned when fetching the products details
   internal var productsDetailsError: IaphubError? = null
+  // Purchase intent id
+  internal var purchaseIntent: String? = null
 
 
   constructor(id: String?, sdk: SDK, enableDeferredPurchaseListener: Boolean = true, onUserUpdate: (() -> Unit)? = null, onDeferredPurchase: ((ReceiptTransaction) -> Unit)? = null) {
@@ -99,39 +103,48 @@ internal class User {
   fun buy(activity: Activity, sku: String, prorationMode: String? = null, crossPlatformConflict: Boolean = true, completion: (IaphubError?, ReceiptTransaction?) -> Unit) {
     val options = mutableMapOf("sku" to sku, "prorationMode" to prorationMode)
 
-    // Refresh user
-    this.refresh() { err, _, _ ->
+    // Create purchase intent
+    this.createPurchaseIntent(sku) { err ->
       // Check if there is an error
       if (err != null) {
-        return@refresh completion(err, null)
+        return@createPurchaseIntent this.confirmPurchaseIntent(err, null, completion)
       }
-      // Get product details
-      this.getProductBySku(sku) { product ->
-        // If we have the product (we could not have the products if the user purchases a product that isn't in the products for sale)
-        if (product != null) {
-          // Check for cross platform conflicts if it is a subscription
-          if (product.type.contains("subscription")) {
-            val conflictedSubscription = this.activeProducts.find { item -> item.type.contains("subscription") && item.platform != "android" }
-            if (crossPlatformConflict && conflictedSubscription != null) {
-              return@getProductBySku completion(IaphubError(IaphubErrorCode.cross_platform_conflict, null,"platform: ${conflictedSubscription.platform}"), null)
+      // Refresh user
+      this.refresh() { err, _, _ ->
+        // Check if there is an error
+        if (err != null) {
+          return@refresh this.confirmPurchaseIntent(err, null, completion)
+        }
+        // Get product details
+        this.getProductBySku(sku) { product ->
+          // If we have the product (we could not have the products if the user purchases a product that isn't in the products for sale)
+          if (product != null) {
+            // Check for cross platform conflicts if it is a subscription
+            if (product.type.contains("subscription")) {
+              val conflictedSubscription = this.activeProducts.find { item -> item.type.contains("subscription") && item.platform != "android" }
+              if (crossPlatformConflict && conflictedSubscription != null) {
+                return@getProductBySku this.confirmPurchaseIntent(IaphubError(IaphubErrorCode.cross_platform_conflict, null,"platform: ${conflictedSubscription.platform}"), null, completion)
+              }
+            }
+            // Check for renewable subscription replace
+            if (product.type == "renewable_subscription" && product.group != null) {
+              val subscriptionToReplace = this.activeProducts.find { item -> item.type == "renewable_subscription" && item.group == product.group && item.androidToken != null }
+
+              if (subscriptionToReplace != null) {
+                options["oldPurchaseToken"] = subscriptionToReplace.androidToken
+              }
+              // Check if the product is already going to be replaced on next renewal date
+              val subscriptionRenewalProduct = this.activeProducts.find { item -> item.subscriptionRenewalProductSku == sku && item.subscriptionState == "active" }
+              if (subscriptionRenewalProduct != null) {
+                return@getProductBySku this.confirmPurchaseIntent(IaphubError(IaphubErrorCode.product_change_next_renewal, params = mapOf("sku" to sku)), null, completion)
+              }
             }
           }
-          // Check for renewable subscription replace
-          if (product.type == "renewable_subscription" && product.group != null) {
-            val subscriptionToReplace = this.activeProducts.find { item -> item.type == "renewable_subscription" && item.group == product.group && item.androidToken != null }
-
-            if (subscriptionToReplace != null) {
-              options["oldPurchaseToken"] = subscriptionToReplace.androidToken
-            }
-            // Check if the product is already going to be replaced on next renewal date
-            val subscriptionRenewalProduct = this.activeProducts.find { item -> item.subscriptionRenewalProductSku == sku && item.subscriptionState == "active" }
-            if (subscriptionRenewalProduct != null) {
-              return@getProductBySku completion(IaphubError(IaphubErrorCode.product_change_next_renewal, params = mapOf("sku" to sku)), null)
-            }
+          // Launch purchase
+          this.sdk.store?.buy(activity, options) { err, transaction ->
+            this.confirmPurchaseIntent(err, transaction, completion)
           }
         }
-        // Launch purchase
-        this.sdk.store?.buy(activity, options, completion)
       }
     }
   }
@@ -466,6 +479,10 @@ internal class User {
    * Post receipt
    */
   fun postReceipt(receipt: Receipt, completion: (IaphubError?, ReceiptResponse?) -> Unit) {
+    // Add purchase intent
+    if (receipt.context == "purchase") {
+      receipt.purchaseIntent = this.purchaseIntent
+    }
     // Load receipt pricings
     this.loadReceiptPricings(receipt) { ->
       // Post receipt
@@ -548,8 +565,6 @@ internal class User {
     }
   }
 
-  /******************************** PRIVATE ********************************/
-
   /*
    * Fetch user
    */
@@ -608,6 +623,59 @@ internal class User {
     }
   }
 
+  /******************************** PRIVATE ********************************/
+
+  /**
+   * Create purchase intent
+   */
+  private fun createPurchaseIntent(sku: String, completion: (IaphubError?) -> Unit) {
+    // Check if not already processing
+    if (this.purchaseIntent != null) {
+      return completion(IaphubError(IaphubErrorCode.buy_processing))
+    }
+    // Create purchase intent
+    val params = mutableMapOf<String, Any>(
+      "sku" to sku
+    )
+    this.paywallId?.let { params["paywallId"] = it }
+
+    this.api.createPurchaseIntent(params) callback@{ err, result ->
+      // Check if there is an error
+      if (err != null) {
+        return@callback completion(err)
+      }
+      // Update current purchase intent id
+      this.purchaseIntent = result?.get("id") as? String
+      // Call completion
+      completion(null)
+    }
+  }
+
+  /**
+   * Confirm purchase intent
+   */
+  private fun confirmPurchaseIntent(err: IaphubError?, transaction: ReceiptTransaction?, completion: (IaphubError?, ReceiptTransaction?) -> Unit) {
+    val params = mutableMapOf<String, Any>()
+
+    if (err != null) {
+      params["errorCode"] = err.code
+      err.subcode?.let { params["errorSubCode"] = it }
+    }
+    // This error shouldn't happen
+    else if (transaction == null) {
+      params["errorCode"] = "transaction_missing"
+    }
+
+    val purchaseIntent = this.purchaseIntent
+    if (purchaseIntent == null) {
+      return completion(err, transaction)
+    }
+    this.purchaseIntent = null
+    this.api.confirmPurchaseIntent(purchaseIntent, params) { _, _ ->
+      completion(err, transaction)
+    }
+  }
+
   /*
    * Get data
    */
@@ -621,6 +689,7 @@ internal class User {
       data = LinkedHashMap(data)
       data.putAll(mapOf(
         "id" to this.id as Any,
+        "paywallId" to this.paywallId as Any,
         "fetchDate" to Util.dateToIsoString(this.fetchDate),
         "isServerLoginEnabled" to this.isServerLoginEnabled,
         "cacheVersion" to Config.cacheVersion
@@ -721,6 +790,8 @@ internal class User {
       this.activeProducts = activeProducts
       // Update iaphub id
       this.iaphubId = data["id"] as? String
+      // Update paywall id
+      this.paywallId = data["paywallId"] as? String
       // Mark needsFetch as false
       this.needsFetch = false
       // Process events
@@ -911,6 +982,7 @@ internal class User {
           )
         }
         this.isServerLoginEnabled = jsonMap["isServerLoginEnabled"] as? Boolean ?: false
+        this.paywallId = jsonMap["paywallId"] as? String
       }
       completion()
     }

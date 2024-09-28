@@ -107,6 +107,30 @@ internal class API {
   }
 
   /*
+   * Create purchase intent
+   */
+  fun createPurchaseIntent(params: Map<String, Any>, completion: (IaphubError?, Map<String, Any>?) -> Unit) {
+    this.network.send(
+      type="POST",
+      route="/app/${this.user.sdk.appId}/user/${this.user.id}/purchase/intent",
+      params=params,
+      completion=completion
+    )
+  }
+
+  /*
+   * Confirm purchase intent
+   */
+  fun confirmPurchaseIntent(id: String, params: Map<String, Any>, completion: (IaphubError?, Map<String, Any>?) -> Unit) {
+    this.network.send(
+      type="POST",
+      route="/app/${this.user.sdk.appId}/purchase/intent/${id}/confirm",
+      params=params,
+      completion=completion
+    )
+  }
+
+  /*
    * Post log
    */
   fun postLog(params: Map<String, Any>, completion: (IaphubError?, Map<String, Any>?) -> Unit) {
