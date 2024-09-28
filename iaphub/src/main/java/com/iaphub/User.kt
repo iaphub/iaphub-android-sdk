@@ -510,13 +510,6 @@ internal class User {
   }
 
   /*
-   * Set subscription renewal product
-   */
-  fun setSubscriptionRenewalProduct(purchaseId: String, sku: String, completion: (IaphubError?, Map<String, Any>?) -> Unit) {
-    this.api.editPurchase(purchaseId, mapOf("subscriptionRenewalProductSku" to sku), completion)
-  }
-
-  /*
    * Reset cache
    */
   fun resetCache() {
