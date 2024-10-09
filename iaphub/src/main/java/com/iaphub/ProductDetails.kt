@@ -46,8 +46,14 @@ open class ProductDetails: Parsable {
   }
 
   open fun setDetails(details: ProductDetails) {
-    this.localizedTitle = details.localizedTitle
-    this.localizedDescription = details.localizedDescription
+    // Update localized title if not already defined by the parent object
+    if (this.localizedTitle == null) {
+      this.localizedTitle = details.localizedTitle
+    }
+    // Update localized description if not already defined by the parent object
+    if (this.localizedDescription == null) {
+      this.localizedDescription = details.localizedDescription
+    }
     this.price = details.price
     this.currency = details.currency
     this.localizedPrice = details.localizedPrice

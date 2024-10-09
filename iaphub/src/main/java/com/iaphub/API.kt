@@ -39,6 +39,10 @@ internal class API {
     if (!this.user.enableDeferredPurchaseListener) {
       params.put("deferredPurchase", "false")
     }
+    // Add lang parameter
+    if (this.user.sdk.lang != "") {
+      params.put("lang", this.user.sdk.lang)
+    }
     this.network.send(
       type="GET",
       route="/app/${this.user.sdk.appId}/user/${this.user.id}",
@@ -79,7 +83,13 @@ internal class API {
   fun postReceipt(receipt: Map<String, Any>, completion: (IaphubError?, Map<String, Any>?) -> Unit) {
     var timeout: Long = 31
     var connectTimeout: Long = 4
+    val params = receipt.toMutableMap()
 
+    // Add lang parameter
+    if (this.user.sdk.lang != "") {
+      params.put("lang", this.user.sdk.lang)
+    }
+    // Update timeout to 65 seconds for purchase context
     if (receipt["context"] as? String == "purchase") {
       timeout = 61
       connectTimeout = 8
@@ -87,7 +97,7 @@ internal class API {
     this.network.send(
       type="POST",
       route="/app/${this.user.sdk.appId}/user/${this.user.id}/receipt",
-      params=receipt,
+      params=params,
       timeout=timeout,
       connectTimeout=connectTimeout,
       completion=completion

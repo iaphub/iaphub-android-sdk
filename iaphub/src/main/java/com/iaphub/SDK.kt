@@ -18,6 +18,7 @@ open class SDK: LifecycleObserver
   internal var appId = ""
   internal var apiKey: String = ""
   internal var environment: String = "production"
+  internal var lang: String = ""
   internal var allowAnonymousPurchase: Boolean = false
 
   internal var sdk: String = Config.sdk
@@ -38,7 +39,7 @@ open class SDK: LifecycleObserver
    * Start IAPHUB
    */
   @Synchronized
-  fun start(context: Context, appId: String, apiKey: String, userId: String? = null, allowAnonymousPurchase: Boolean = false, enableDeferredPurchaseListener: Boolean = true, environment: String = "production", sdk: String = "", sdkVersion: String = "") {
+  fun start(context: Context, appId: String, apiKey: String, userId: String? = null, allowAnonymousPurchase: Boolean = false, enableDeferredPurchaseListener: Boolean = true, environment: String = "production", lang: String = "", sdk: String = "", sdkVersion: String = "") {
     this.context = context.applicationContext
     this.appId = appId
     this.apiKey = apiKey
@@ -51,6 +52,9 @@ open class SDK: LifecycleObserver
     this.apiKey = apiKey
     this.allowAnonymousPurchase = allowAnonymousPurchase
     this.environment = environment
+    if (lang != "" && this.isValidLang(lang)) {
+      this.lang = lang
+    }
     if (sdk != "") {
       this.sdk = Config.sdk + "/" + sdk;
     }
@@ -95,6 +99,23 @@ open class SDK: LifecycleObserver
       // Mark as unstarted
       this.isStarted = false
     }
+  }
+
+  /**
+   * Set language
+   */
+  fun setLang(lang: String): Boolean {
+    if (!this.isValidLang(lang)) {
+      return false
+    }
+    if (lang != this.lang) {
+      this.lang = lang
+      val user = this.user
+      if (user != null) {
+        this.user?.resetCache()
+      }
+    }
+    return true
   }
 
   /**
@@ -292,6 +313,15 @@ open class SDK: LifecycleObserver
   }
 
   /************************************* PRIVATE ***********************************/
+
+  /**
+   * Check if the lang code is valid
+   */
+  private fun isValidLang(lang: String): Boolean {
+    // Regular expression to match "xx" or "xx-XX" formats
+    val regex = Regex("^[a-z]{2}(-[A-Z]{2})?$")
+    return regex.matches(lang)
+  }
 
   /**
    * Triggered when there is an user update
