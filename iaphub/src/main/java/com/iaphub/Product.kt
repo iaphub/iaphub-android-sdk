@@ -12,6 +12,8 @@ open class Product: ProductDetails {
   var group: String?
   // Group name
   var groupName: String?
+  // Metadata
+  var metadata: Map<String, String>
 
   // Details source
   internal var details: ProductDetails? = null
@@ -21,6 +23,7 @@ open class Product: ProductDetails {
     this.type = data["type"] as String
     this.group = data["group"] as? String
     this.groupName = data["groupName"] as? String
+    this.metadata = (data["metadata"] as? Map<String, String>) ?: emptyMap()
   }
 
   constructor(data: Map<String, Any?>, allowEmptySku: Boolean = false): super(data, allowEmptySku) {
@@ -28,6 +31,7 @@ open class Product: ProductDetails {
     this.type = data["type"] as String
     this.group = data["group"] as? String
     this.groupName = data["groupName"] as? String
+    this.metadata = (data["metadata"] as? Map<String, String>) ?: emptyMap()
   }
 
   override fun getData(): Map<String, Any?> {
@@ -36,7 +40,8 @@ open class Product: ProductDetails {
       "id" to this.id as? Any?,
       "type" to this.type as? Any?,
       "group" to this.group as? Any?,
-      "groupName" to this.groupName as? Any?
+      "groupName" to this.groupName as? Any?,
+      "metadata" to this.metadata as? Any?
     )
 
     return LinkedHashMap(data1).apply { putAll(data2) }
