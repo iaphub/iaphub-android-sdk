@@ -105,18 +105,6 @@ internal class API {
   }
 
   /*
-   * Edit purchase
-   */
-  fun editPurchase(purchaseId: String, params: Map<String, Any>, completion: (IaphubError?, Map<String, Any>?) -> Unit) {
-    this.network.send(
-      type="POST",
-      route="/app/${this.user.sdk.appId}/purchase/${purchaseId}",
-      params=params,
-      completion=completion
-    )
-  }
-
-  /*
    * Create purchase intent
    */
   fun createPurchaseIntent(params: Map<String, Any>, completion: (IaphubError?, Map<String, Any>?) -> Unit) {
