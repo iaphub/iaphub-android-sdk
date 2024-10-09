@@ -23,6 +23,7 @@ open class Product: ProductDetails {
     this.type = data["type"] as String
     this.group = data["group"] as? String
     this.groupName = data["groupName"] as? String
+    @Suppress("UNCHECKED_CAST")
     this.metadata = (data["metadata"] as? Map<String, String>) ?: emptyMap()
   }
 
@@ -31,6 +32,7 @@ open class Product: ProductDetails {
     this.type = data["type"] as String
     this.group = data["group"] as? String
     this.groupName = data["groupName"] as? String
+    @Suppress("UNCHECKED_CAST")
     this.metadata = (data["metadata"] as? Map<String, String>) ?: emptyMap()
   }
 
