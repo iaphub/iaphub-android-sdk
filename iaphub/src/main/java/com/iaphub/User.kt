@@ -682,7 +682,7 @@ internal class User {
       data = LinkedHashMap(data)
       data.putAll(mapOf(
         "id" to this.id as Any,
-        "paywallId" to this.paywallId as Any,
+        "paywallId" to this.paywallId as? Any,
         "fetchDate" to Util.dateToIsoString(this.fetchDate),
         "isServerLoginEnabled" to this.isServerLoginEnabled,
         "cacheVersion" to Config.cacheVersion
