@@ -20,6 +20,8 @@ internal class User {
   internal var paywallId: String? = null
   // Latest user fetch date
   internal var fetchDate: Date? = null
+  // ETag for HTTP caching
+  internal var etag: String? = null
 
 
   // SDK
@@ -486,7 +488,8 @@ internal class User {
     // Load receipt pricings
     this.loadReceiptPricings(receipt) { ->
       // Post receipt
-      this.api.postReceipt(receipt.getData()) { err, data ->
+      this.api.postReceipt(receipt.getData()) { err, response ->
+        val data = response?.data
         // Check for error
         if (err != null || data == null) {
           completion(err ?: IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.post_receipt_data_missing), null)
@@ -497,13 +500,13 @@ internal class User {
           // Update receipt post date
           this.receiptPostDate = Date()
           // Create receipt response
-          val response = ReceiptResponse(data)
+          val receiptResponse = ReceiptResponse(data)
           // If it is an anonymous user, enable the server login if a new transaction is detected
-          if (this.isAnonymous() && response.status == "success" && response.newTransactions?.isEmpty() == false) {
+          if (this.isAnonymous() && receiptResponse.status == "success" && receiptResponse.newTransactions?.isEmpty() == false) {
             this.enableServerLogin()
           }
           // Parse and return receipt response
-          completion(null, response)
+          completion(null, receiptResponse)
         }
       }
     }
@@ -553,7 +556,7 @@ internal class User {
       params["data"]?.set("fingerprint", fingerprint)
     }
     // Post log
-    this.api.postLog(params) { _, _ ->
+    this.api.postLog(params) { _, ->
       // No need to do anything if there is an error
     }
   }
@@ -607,9 +610,9 @@ internal class User {
     // Get cache data (only if fetching for the first time)
     this.getCacheData {
       // Get data from API
-      this.api.getUser { err, data ->
+      this.api.getUser { err, response ->
         // Update user using API data
-        this.updateFromApiData(err, data) { updateErr, isUpdated ->
+        this.updateFromApiData(err, response) { updateErr, isUpdated ->
           completeFetchRequests(updateErr, isUpdated)
         }
       }
@@ -632,13 +635,13 @@ internal class User {
     )
     this.paywallId?.let { params["paywallId"] = it }
 
-    this.api.createPurchaseIntent(params) callback@{ err, result ->
+    this.api.createPurchaseIntent(params) callback@{ err, response ->
       // Check if there is an error
       if (err != null) {
         return@callback completion(err)
       }
       // Update current purchase intent id
-      this.purchaseIntent = result?.get("id") as? String
+      this.purchaseIntent = response?.data?.get("id") as? String
       // Call completion
       completion(null)
     }
@@ -684,6 +687,7 @@ internal class User {
         "id" to this.id as Any,
         "paywallId" to this.paywallId as? Any,
         "fetchDate" to Util.dateToIsoString(this.fetchDate),
+        "etag" to this.etag as? Any,
         "isServerLoginEnabled" to this.isServerLoginEnabled,
         "cacheVersion" to Config.cacheVersion
       ))
@@ -694,18 +698,19 @@ internal class User {
   /*
    * Update user using API data
    */
-  private fun updateFromApiData(err: IaphubError?, data: Map<String, Any>?, completion: (IaphubError?, Boolean) -> Unit) {
-    var userData = data
+  private fun updateFromApiData(err: IaphubError?, response: NetworkResponse?, completion: (IaphubError?, Boolean) -> Unit) {
+    var data = response?.data
     var isUpdated = false
 
-    // Check error
+    // Handle 304 not modified
+    if (response?.hasNotModified() == true) {
+      return completion(null, isUpdated)
+    }
+    // Handle errors
     if (err != null) {
       // Clear products if the platform is disabled
       if (err.code == "server_error" && err.subcode == "platform_disabled") {
-        userData = mapOf(
-          "productsForSale" to emptyList<Any>(),
-          "activeProducts" to emptyList<Any>()
-        )
+        data = mapOf("productsForSale" to emptyList<Any>(), "activeProducts" to emptyList<Any>())
       }
       // Otherwise return an error
       else {
@@ -713,13 +718,13 @@ internal class User {
       }
     }
     // Check data
-    if (userData == null) {
+    if (data == null) {
       return completion(IaphubError(IaphubErrorCode.unexpected), isUpdated)
     }
     // Save products dictionary
     val oldData = this.getData(productsOnly = true)
     // Update data
-    this.update(userData) { updateErr ->
+    this.update(data) { updateErr ->
       // Check error
       if (updateErr != null) {
         return@update completion(updateErr, isUpdated)
@@ -729,6 +734,8 @@ internal class User {
       if (this.isInitialized && !this.sameProducts(newData, oldData)) {
         isUpdated = true
       }
+      // Update ETag
+      response?.getHeader("ETag")?.let { this.etag = it }
       // Call completion
       completion(null, isUpdated)
     }
@@ -875,6 +882,7 @@ internal class User {
     this.needsFetch = false
     this.isInitialized = false
     this.isServerLoginEnabled = false
+    this.etag = null
   }
 
   /*
@@ -976,6 +984,7 @@ internal class User {
         }
         this.isServerLoginEnabled = jsonMap["isServerLoginEnabled"] as? Boolean ?: false
         this.paywallId = jsonMap["paywallId"] as? String
+        this.etag = jsonMap["etag"] as? String
       }
       completion()
     }

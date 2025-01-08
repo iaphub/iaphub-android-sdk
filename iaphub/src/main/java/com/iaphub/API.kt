@@ -23,9 +23,15 @@ internal class API {
   /*
    * Get user
    */
-  fun getUser(completion: (IaphubError?, Map<String, Any>?) -> Unit) {
+  fun getUser(completion: (IaphubError?, NetworkResponse?) -> Unit) {
     var params: MutableMap<String, Any> = mutableMapOf()
+    var headers: MutableMap<String, String> = mutableMapOf()
 
+    // Add If-None-Match header
+    val etag = this.user.etag
+    if (etag != null) {
+      headers.put("If-None-Match", etag)
+    }
     // Add updateDate
     val updateDate = this.user.updateDate
     if (updateDate != null) {
@@ -47,6 +53,7 @@ internal class API {
       type="GET",
       route="/app/${this.user.sdk.appId}/user/${this.user.id}",
       params=params,
+      headers=headers,
       completion=completion
     )
   }
@@ -80,7 +87,7 @@ internal class API {
   /*
    * Post receipt
    */
-  fun postReceipt(receipt: Map<String, Any>, completion: (IaphubError?, Map<String, Any>?) -> Unit) {
+  fun postReceipt(receipt: Map<String, Any>, completion: (IaphubError?, NetworkResponse?) -> Unit) {
     var timeout: Long = 31
     var connectTimeout: Long = 4
     val params = receipt.toMutableMap()
@@ -107,7 +114,7 @@ internal class API {
   /*
    * Create purchase intent
    */
-  fun createPurchaseIntent(params: Map<String, Any>, completion: (IaphubError?, Map<String, Any>?) -> Unit) {
+  fun createPurchaseIntent(params: Map<String, Any>, completion: (IaphubError?, NetworkResponse?) -> Unit) {
     this.network.send(
       type="POST",
       route="/app/${this.user.sdk.appId}/user/${this.user.id}/purchase/intent",
@@ -119,7 +126,7 @@ internal class API {
   /*
    * Confirm purchase intent
    */
-  fun confirmPurchaseIntent(id: String, params: Map<String, Any>, completion: (IaphubError?, Map<String, Any>?) -> Unit) {
+  fun confirmPurchaseIntent(id: String, params: Map<String, Any>, completion: (IaphubError?, NetworkResponse?) -> Unit) {
     this.network.send(
       type="POST",
       route="/app/${this.user.sdk.appId}/purchase/intent/${id}/confirm",
@@ -131,7 +138,7 @@ internal class API {
   /*
    * Post log
    */
-  fun postLog(params: Map<String, Any>, completion: (IaphubError?, Map<String, Any>?) -> Unit) {
+  fun postLog(params: Map<String, Any>, completion: (IaphubError?) -> Unit) {
     this.network.send(
       type="POST",
       route="/app/${this.user.sdk.appId}/log",
@@ -140,7 +147,7 @@ internal class API {
       retry=0,
       silentLog=true,
       params=params,
-      completion=completion
+      completion={ err, _ -> completion(err)}
     )
   }
 
