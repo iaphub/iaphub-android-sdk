@@ -10,7 +10,7 @@ internal object IaphubLogLimit {
   var time: Date = Date()
 
   fun isAllowed(): Boolean {
-    if ((Date()).getTime() > this.time.getTime() + this.timeLimit) {
+    if ((Date()).getTime() > (this.time.getTime() + (this.timeLimit * 1000))) {
       this.count = 0
       this.time = Date()
     }

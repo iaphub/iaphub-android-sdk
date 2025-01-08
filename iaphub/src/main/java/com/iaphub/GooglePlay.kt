@@ -228,7 +228,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
       purchases.forEach { purchase ->
         val refreshedReceipt = this.refreshedReceipts.find { receipt -> receipt.token == purchase.purchaseToken }
         val failedReceipt = this.failedReceipts.find { receipt -> receipt.token == purchase.purchaseToken }
-        val failedReceiptRetryDuration = 60 * 60 * 24 * 3
+        val failedReceiptRetryDuration = 1000 * 60 * 60 * 24 * 3
 
         // Process purchase if not processed before or processed with an error less than 72 hours ago
         if (refreshedReceipt == null || (failedReceipt != null && Date(failedReceipt.date.getTime() + failedReceiptRetryDuration).after(Date()))) {

@@ -206,7 +206,7 @@ internal class User {
       // User marked as outdated
       this.needsFetch == true ||
       // User hasn't been refreshed since the interval
-      Date(this.fetchDate!!.getTime() + interval).before(Date()) ||
+      Date(this.fetchDate!!.getTime() + (interval * 1000)).before(Date()) ||
       // Receit post date more recent than the user fetch date
       this.receiptPostDate?.after(this.fetchDate!!) == true
     ) {
