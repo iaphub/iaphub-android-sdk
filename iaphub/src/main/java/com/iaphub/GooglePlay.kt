@@ -236,8 +236,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
         }
       }
       // Update refreshed order ids
-      this.refreshedReceipts = mutableListOf()
-      purchases.map { purchase -> ReceiptProcessing(purchase.purchaseToken) }
+      this.refreshedReceipts = purchases.map { purchase -> ReceiptProcessing(purchase.purchaseToken) }.toMutableList()
       // Mark refreshing as done
       this.isRefreshing = false
     }
