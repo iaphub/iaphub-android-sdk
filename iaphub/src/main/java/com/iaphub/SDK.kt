@@ -285,6 +285,13 @@ open class SDK: LifecycleObserver
   }
 
   /**
+   * Get SDK version
+   */
+  fun getSDKVersion(): String {
+    return Config.sdkVersion
+  }
+
+  /**
    * Set OnUserUpdate listener
    */
   fun setOnUserUpdateListener(listener: () -> Unit) {
