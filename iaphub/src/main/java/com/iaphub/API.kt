@@ -23,10 +23,12 @@ internal class API {
   /*
    * Get user
    */
-  fun getUser(completion: (IaphubError?, NetworkResponse?) -> Unit) {
+  fun getUser(context: UserFetchContext, completion: (IaphubError?, NetworkResponse?) -> Unit) {
     var params: MutableMap<String, Any> = mutableMapOf()
     var headers: MutableMap<String, String> = mutableMapOf()
 
+    // Add context
+    params["context"] = context.getValue()
     // Add If-None-Match header
     val etag = this.user.etag
     if (etag != null) {
@@ -36,6 +38,11 @@ internal class API {
     val updateDate = this.user.updateDate
     if (updateDate != null) {
       params.put("updateDate", "${updateDate.getTime()}")
+    }
+    // Add fetchDate parameter (the last time the user was fetched)
+    val fetchDate = this.user.fetchDate
+    if (fetchDate != null) {
+      params.put("fetchDate", "${fetchDate.getTime()}")
     }
     // Add device params
     for ((key, value) in this.user.sdk.deviceParams) {

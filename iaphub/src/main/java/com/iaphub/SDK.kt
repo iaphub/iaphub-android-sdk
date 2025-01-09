@@ -345,7 +345,10 @@ open class SDK: LifecycleObserver
     var user = this.user
     // Refresh user (only if it has already been fetched)
     if (user != null && user.fetchDate != null && this.testing.lifecycleEvent != false) {
-      user.refresh() { _, _, _ ->
+      user.refresh(UserFetchContext(
+        source = UserFetchContextSource.PRODUCTS,
+        properties = mutableListOf(UserFetchContextProperty.ON_FOREGROUND)
+      )) { _, _, _ ->
         // Refresh store
         this.store?.refresh()
       }
@@ -386,7 +389,7 @@ open class SDK: LifecycleObserver
           }
           if (error == null && receiptResponse != null) {
             // Refresh user in case the user id has been updated
-            user.refresh { _, _, _ ->
+            user.refresh(UserFetchContext(source = UserFetchContextSource.RECEIPT)) { _, _, _ ->
               // Finish receipt if it is a success
               if (receiptResponse.status == "success") {
                 shouldFinishReceipt = true

@@ -112,7 +112,7 @@ internal class User {
         return@createPurchaseIntent this.confirmPurchaseIntent(err, null, completion)
       }
       // Refresh user
-      this.refresh() { err, _, _ ->
+      this.refresh(UserFetchContext(source = UserFetchContextSource.BUY)) { err, _, _ ->
         // Check if there is an error
         if (err != null) {
           return@refresh this.confirmPurchaseIntent(err, null, completion)
@@ -166,7 +166,7 @@ internal class User {
       // Update updateDate
       this.updateDate = Date()
       // Refresh user
-      this.refresh(interval = 0, force = true) { _, _, _ ->
+      this.refresh(UserFetchContext(source = UserFetchContextSource.RESTORE), interval = 0, force = true) { _, _, _ ->
         val newPurchases = this.restoredDeferredPurchases
         val transferredActiveProducts = this.activeProducts.filter { newActiveProduct ->
           val isInOldActiveProducts = (oldActiveProducts.find { oldActiveProduct -> oldActiveProduct.sku == newActiveProduct.sku }) != null
@@ -197,7 +197,7 @@ internal class User {
   /*
    * Refresh user
    */
-  fun refresh(interval: Long, force: Boolean = false, completion: ((IaphubError?, Boolean, Boolean) -> Unit)? = null) {
+  fun refresh(context: UserFetchContext, interval: Long, force: Boolean = false, completion: ((IaphubError?, Boolean, Boolean) -> Unit)? = null) {
     var shouldFetch = false
 
     if (
@@ -227,7 +227,7 @@ internal class User {
       return
     }
     // Otherwise fetch user
-    this.fetch() {err, isUpdated ->
+    this.fetch(context) {err, isUpdated ->
       // Check if there is an error
       if (err != null) {
         // Return an error if the user has never been fetched
@@ -257,9 +257,9 @@ internal class User {
   /*
    * Refresh user with a shorter interval if the user has an active subscription (otherwise every 24 hours by default)
    */
-  fun refresh(completion: ((IaphubError?, Boolean, Boolean) -> Unit)? = null) {
+  fun refresh(context: UserFetchContext, completion: ((IaphubError?, Boolean, Boolean) -> Unit)? = null) {
     // Refresh user
-    this.refresh(60 * 60 * 24) { err, isFetched, isUpdated ->
+    this.refresh(context = context, interval = 60 * 60 * 24) { err, isFetched, isUpdated ->
       // Check if there is an error
       if (err != null) {
         completion?.let { it(err, isFetched, isUpdated) }
@@ -270,7 +270,7 @@ internal class User {
         val subscription = this.activeProducts.find { product -> arrayOf("renewable_subscription", "subscription").contains(product.type) }
         // If we have an active subscription refresh every minute
         if (subscription != null) {
-          this.refresh(interval=60, completion=completion)
+          this.refresh(context = context, interval = 60, completion = completion)
         }
         // Otherwise call the completion
         else {
@@ -289,7 +289,7 @@ internal class User {
    */
   fun getActiveProducts(includeSubscriptionStates: List<String> = listOf(), completion: (IaphubError?, List<ActiveProduct>?) -> Unit) {
     // Refresh user
-    this.refresh() { err, _, _ ->
+    this.refresh(UserFetchContext(source = UserFetchContextSource.PRODUCTS)) { err, _, _ ->
       // Check if there is an error
       if (err != null) {
         return@refresh completion(err, null)
@@ -313,7 +313,7 @@ internal class User {
    */
   fun getProductsForSale(completion: (IaphubError?, List<Product>?) -> Unit) {
     // Refresh user with an interval of 24 hours
-    this.refresh(interval=60 * 60 * 24) { err, _, _ ->
+    this.refresh(UserFetchContext(source = UserFetchContextSource.PRODUCTS), interval = 60 * 60 * 24) { err, _, _ ->
       // Check if there is an error
       if (err != null) {
         return@refresh completion(err, null)
@@ -565,7 +565,7 @@ internal class User {
    * Fetch user
    */
   @Synchronized
-  fun fetch(completion: (IaphubError?, Boolean) -> Unit) {
+  fun fetch(context: UserFetchContext, completion: (IaphubError?, Boolean) -> Unit) {
     // Check if the user id is valid
     if (!this.isAnonymous() && !this.isValidId(this.id)) {
       return completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.user_id_invalid, "fetch failed, id: ${this.id}", mapOf("userId" to this.id)), false)
@@ -607,19 +607,45 @@ internal class User {
         }
       }
     }
-    // Get cache data (only if fetching for the first time)
-    this.getCacheData {
-      // Get data from API
-      this.api.getUser { err, response ->
-        // Update user using API data
-        this.updateFromApiData(err, response) { updateErr, isUpdated ->
-          completeFetchRequests(updateErr, isUpdated)
-        }
+    // If fetching for the first time, try getting data from cache first
+    if (this.fetchDate == null) {
+      this.getCacheData {
+        this.fetchAPI(context, ::completeFetchRequests)
       }
+    } else {
+      this.fetchAPI(context, ::completeFetchRequests)
     }
   }
 
   /******************************** PRIVATE ********************************/
+
+  /**
+   * Fetch user from API
+   */
+  private fun fetchAPI(context: UserFetchContext, completion: (IaphubError?, Boolean) -> Unit) {
+    // Add property to context if active product detected
+    if (this.activeProducts.isNotEmpty()) {
+      // Check for active and expired subscriptions
+      val subscriptions = this.activeProducts.filter { it.type.contains("subscription") && it.expirationDate != null }
+      // Add active subscription property if any subscription is active
+      if (subscriptions.any { it.expirationDate!! > Date() }) {
+        context.properties.add(UserFetchContextProperty.WITH_ACTIVE_SUBSCRIPTION)
+      }
+      // Add expired subscription property if any subscription is expired
+      if (subscriptions.any { it.expirationDate!! <= Date() }) {
+        context.properties.add(UserFetchContextProperty.WITH_EXPIRED_SUBSCRIPTION)
+      }
+      // Add active non consumable property if any non consumable is active
+      if (this.activeProducts.any { it.type == "non_consumable" }) {
+        context.properties.add(UserFetchContextProperty.WITH_ACTIVE_NON_CONSUMABLE)
+      }
+    }
+    // Get data from API
+    this.api.getUser(context) { err, response ->
+      // Update user using API data
+      this.updateFromApiData(err, response, completion)
+    }
+  }
 
   /**
    * Create purchase intent
