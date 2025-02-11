@@ -8,10 +8,11 @@ enum class UserFetchContextSource(val value: String) {
 }
 
 enum class UserFetchContextProperty(val value: String) {
-   WITH_ACTIVE_SUBSCRIPTION("was"),      // The user has an active subscription
-   WITH_EXPIRED_SUBSCRIPTION("wes"),     // The user has an expired subscription
-   WITH_ACTIVE_NON_CONSUMABLE("wanc"),  // The user has an active non consumable
-   ON_FOREGROUND("ofg")                 // Occurred when the app went to foreground
+   WITH_ACTIVE_SUBSCRIPTION("was"),       // The user has an active subscription
+   WITH_EXPIRED_SUBSCRIPTION("wes"),      // The user has an expired subscription
+   WITH_ACTIVE_NON_CONSUMABLE("wanc"),    // The user has an active non consumable
+   ON_FOREGROUND("ofg"),                  // Occurred when the app went to foreground
+   INITIALIZATION("init")                 // Occurred on the user's first fetch call
 }
 
 class UserFetchContext(

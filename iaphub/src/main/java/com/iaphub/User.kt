@@ -640,6 +640,10 @@ internal class User {
         context.properties.add(UserFetchContextProperty.WITH_ACTIVE_NON_CONSUMABLE)
       }
     }
+    // Add property to context if initialization detected
+    if (!this.isInitialized) {
+      context.properties.add(UserFetchContextProperty.INITIALIZATION)
+    }
     // Get data from API
     this.api.getUser(context) { err, response ->
       // Update user using API data
