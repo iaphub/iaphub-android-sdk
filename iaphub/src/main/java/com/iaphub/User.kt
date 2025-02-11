@@ -46,6 +46,8 @@ internal class User {
   internal var isInitialized: Boolean = false
   // Indicates the login with the server is enabled
   internal var isServerLoginEnabled: Boolean = false
+  // Indicates if the user data has been fetched from the server
+  internal var isServerDataFetched: Boolean = false
   // Indicates if the user needs to be fetched
   internal var needsFetch: Boolean = false
   // Latest receipt post date
@@ -647,7 +649,7 @@ internal class User {
       }
     }
     // Add property to context if initialization detected
-    if (!this.isInitialized) {
+    if (!this.isServerDataFetched) {
       context.properties.add(UserFetchContextProperty.INITIALIZATION)
     }
     // Get data from API
@@ -782,6 +784,8 @@ internal class User {
       if (!this.sameProducts(newData, oldData)) {
         isUpdated = true
       }
+      // Update isServerDataFetched
+      this.isServerDataFetched = true
       // Update ETag
       response?.getHeader("ETag")?.let { this.etag = it }
       // Call completion
@@ -936,6 +940,7 @@ internal class User {
     this.needsFetch = false
     this.isInitialized = false
     this.isServerLoginEnabled = false
+    this.isServerDataFetched = false
     this.etag = null
   }
 
