@@ -215,8 +215,13 @@ internal class User {
       shouldFetch = true
     }
     // Update products details if we had an error or filtered products
-    if (!shouldFetch && (this.productsDetailsError != null || this.filteredProductsForSale.isNotEmpty())) {
+    if (!shouldFetch && this.filteredProductsForSale.isNotEmpty()) {
       this.updateFilteredProducts() { isUpdated ->
+        // Trigger onUserUpdate on update
+        if (isUpdated) {
+          this.onUserUpdate?.let { it() }
+        }
+        // Call completion
         completion?.let { it(null, false, isUpdated) }
       }
       return
@@ -593,7 +598,8 @@ internal class User {
         this.saveCacheData()
       }
       // If we have a fetchDate mark the user as initialized
-      if (this.fetchDate != null && !this.isInitialized) {
+      val isInitialized = this.isInitialized
+      if (this.fetchDate != null && !isInitialized) {
         this.isInitialized = true
       }
       // Call requests with the error
@@ -601,7 +607,7 @@ internal class User {
       fetchRequests.forEach { request ->
         request(err, requestIsUpdated)
         // Only mark as updated for the first request
-        if (requestIsUpdated) {
+        if (requestIsUpdated && isInitialized) {
           requestIsUpdated = false
           this.onUserUpdate?.let { it() }
         }
@@ -647,7 +653,18 @@ internal class User {
     // Get data from API
     this.api.getUser(context) { err, response ->
       // Update user using API data
-      this.updateFromApiData(err, response, completion)
+      this.updateFromApiData(err, response) { updateErr, isUpdated ->
+        // If no update, check the filtered products for sale
+        if (!isUpdated) {
+          this.updateFilteredProducts { isUpdatedFromFilteredProducts ->
+            completion(updateErr, isUpdatedFromFilteredProducts)
+          }
+        }
+        // Otherwise call the completion
+        else {
+          completion(err, isUpdated)
+        }
+      }
     }
   }
 
@@ -719,6 +736,7 @@ internal class User {
         "fetchDate" to Util.dateToIsoString(this.fetchDate),
         "etag" to this.etag as? Any,
         "isServerLoginEnabled" to this.isServerLoginEnabled,
+        "filteredProductsForSale" to this.filteredProductsForSale.map { product -> product.getData() },
         "cacheVersion" to Config.cacheVersion
       ))
     }
@@ -761,7 +779,7 @@ internal class User {
       }
       // Check if the user has been updated
       val newData = this.getData(productsOnly = true)
-      if (this.isInitialized && !this.sameProducts(newData, oldData)) {
+      if (!this.sameProducts(newData, oldData)) {
         isUpdated = true
       }
       // Update ETag
@@ -837,7 +855,10 @@ internal class User {
   private fun updateProductsDetails(products: List<Product>, completion: () -> Unit) {
     // Extract sku and filter empty sku (could happen with an active product from another platform)
     var productSkus = products.map { product -> product.sku }.filter { sku -> sku != "" }.distinct()
-
+    // Call completion on empty array
+    if (productSkus.isEmpty()) {
+      return completion()
+    }
     // Get products details
     this.sdk.store?.getProductsDetails(productSkus) { err, productsDetails ->
       // Note: We're not calling with completion handler with the error of getProductsDetails
@@ -862,6 +883,10 @@ internal class User {
    * Update filtered products
    */
   private fun updateFilteredProducts(completion: (Boolean) -> Unit) {
+    // Call completion on empty array
+    if (this.filteredProductsForSale.isEmpty()) {
+      return completion(false)
+    }
     // Get products details
     this.updateProductsDetails(this.filteredProductsForSale) {
       // Detect recovered products
@@ -872,8 +897,6 @@ internal class User {
       this.filteredProductsForSale = this.filteredProductsForSale.filter { product -> product.details == null }
       // If we recovered products
       if (recoveredProducts.isNotEmpty()) {
-        // Trigger onUserUpdate
-        this.onUserUpdate?.let { it() }
         // Call completion
         completion(true)
       }
@@ -905,6 +928,7 @@ internal class User {
    */
   private fun reset() {
     this.productsForSale = listOf()
+    this.filteredProductsForSale = listOf()
     this.activeProducts = listOf()
     this.fetchDate = null
     this.receiptPostDate = null
@@ -1001,6 +1025,15 @@ internal class User {
             IaphubErrorCode.unexpected,
             IaphubUnexpectedErrorCode.get_cache_data_item_parsing_failed,
             message="issue on product for sale\n\n${err.stackTraceToString()}",
+            params=mapOf("item" to item)
+          )
+        }
+        this.filteredProductsForSale = Util.parseItems<Product>(jsonMap["filteredProductsForSale"], allowNull = true)
+        { err, item ->
+          IaphubError(
+            IaphubErrorCode.unexpected,
+            IaphubUnexpectedErrorCode.get_cache_data_item_parsing_failed,
+            message="issue on filtered product for sale\n\n${err.stackTraceToString()}",
             params=mapOf("item" to item)
           )
         }
