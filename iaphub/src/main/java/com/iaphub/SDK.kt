@@ -351,7 +351,7 @@ open class SDK: LifecycleObserver
   private fun onAppForeground() {
     var user = this.user
     // Refresh user (only if it has already been fetched)
-    if (user != null && user.fetchDate != null && this.testing.lifecycleEvent != false) {
+    if (user != null && user.isInitialized && this.testing.lifecycleEvent != false) {
       user.refresh(UserFetchContext(
         source = UserFetchContextSource.PRODUCTS,
         properties = mutableListOf(UserFetchContextProperty.ON_FOREGROUND)
