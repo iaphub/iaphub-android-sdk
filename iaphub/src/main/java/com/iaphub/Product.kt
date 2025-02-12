@@ -14,6 +14,8 @@ open class Product: ProductDetails {
   var groupName: String?
   // Metadata
   var metadata: Map<String, String>
+  // Alias
+  var alias: String?
 
   // Details source
   internal var details: ProductDetails? = null
@@ -23,6 +25,7 @@ open class Product: ProductDetails {
     this.type = data["type"] as String
     this.group = data["group"] as? String
     this.groupName = data["groupName"] as? String
+    this.alias = data["alias"] as? String
     @Suppress("UNCHECKED_CAST")
     this.metadata = (data["metadata"] as? Map<String, String>) ?: emptyMap()
   }
@@ -32,6 +35,7 @@ open class Product: ProductDetails {
     this.type = data["type"] as String
     this.group = data["group"] as? String
     this.groupName = data["groupName"] as? String
+    this.alias = data["alias"] as? String
     @Suppress("UNCHECKED_CAST")
     this.metadata = (data["metadata"] as? Map<String, String>) ?: emptyMap()
   }
@@ -43,7 +47,8 @@ open class Product: ProductDetails {
       "type" to this.type as? Any?,
       "group" to this.group as? Any?,
       "groupName" to this.groupName as? Any?,
-      "metadata" to this.metadata as? Any?
+      "metadata" to this.metadata as? Any?,
+      "alias" to this.alias as? Any?
     )
 
     return LinkedHashMap(data1).apply { putAll(data2) }
