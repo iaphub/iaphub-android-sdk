@@ -16,15 +16,32 @@ class ProductQuery {
    * Get the subscription offer
    */
   fun getSubscriptionOffer():  com.android.billingclient.api.ProductDetails.SubscriptionOfferDetails? {
-    val basePlanId = this.sku.substringAfter(":", "")
+    var basePlanId = this.sku.substringAfter(":", "")
 
-    return this.details.subscriptionOfferDetails?.reversed()?.find {
-      // If no base plan id, return the first occurence
-      if (basePlanId == "") {
-        return@find true
+    // Get default base plan if not defined
+    if (basePlanId == "") {
+      val defaultBasePlanOffer = this.details.subscriptionOfferDetails?.get(0)
+
+      if (defaultBasePlanOffer != null) {
+        basePlanId = defaultBasePlanOffer.basePlanId
       }
-      return@find it.basePlanId == basePlanId
     }
+    // Get offers of base plan
+    val offersOfBasePlanId = this.details.subscriptionOfferDetails?.filter { offer ->
+      offer.basePlanId == basePlanId
+    }
+    // Look if any other offer than the default one
+    var offer = offersOfBasePlanId?.find { offer ->
+      offer.offerId != null
+    }
+    // If none found, use the default one
+    if (offer == null) {
+      offer = offersOfBasePlanId?.find { offer ->
+        offer.offerId == null
+      }
+    }
+
+    return offer
   }
 
 }
