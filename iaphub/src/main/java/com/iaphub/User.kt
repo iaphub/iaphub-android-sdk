@@ -216,18 +216,6 @@ internal class User {
     ) {
       shouldFetch = true
     }
-    // Update products details if we had an error or filtered products
-    if (!shouldFetch && this.filteredProductsForSale.isNotEmpty()) {
-      this.updateFilteredProducts() { isUpdated ->
-        // Trigger onUserUpdate on update
-        if (isUpdated) {
-          this.onUserUpdate?.let { it() }
-        }
-        // Call completion
-        completion?.let { it(null, false, isUpdated) }
-      }
-      return
-    }
     // Call completion if fetch not requested
     if (!shouldFetch) {
       completion?.let { it(null, false, false) }
@@ -652,20 +640,20 @@ internal class User {
     if (!this.isServerDataFetched) {
       context.properties.add(UserFetchContextProperty.INITIALIZATION)
     }
+    // Save products dictionary
+    val oldData = this.getData(productsOnly = true)
     // Get data from API
     this.api.getUser(context) { err, response ->
       // Update user using API data
-      this.updateFromApiData(err, response) { updateErr, isUpdated ->
-        // If no update, check the filtered products for sale
-        if (!isUpdated) {
-          this.updateFilteredProducts { isUpdatedFromFilteredProducts ->
-            completion(updateErr, isUpdatedFromFilteredProducts)
-          }
+      this.updateFromApiData(err, response) { updateErr ->
+        // Check if the user has been updated
+        val newData = this.getData(productsOnly = true)
+        var isUpdated = false
+        if (!this.sameProducts(newData, oldData)) {
+          isUpdated = true
         }
-        // Otherwise call the completion
-        else {
-          completion(err, isUpdated)
-        }
+        // Call completion
+        completion(updateErr, isUpdated)
       }
     }
   }
@@ -748,13 +736,17 @@ internal class User {
   /*
    * Update user using API data
    */
-  private fun updateFromApiData(err: IaphubError?, response: NetworkResponse?, completion: (IaphubError?, Boolean) -> Unit) {
+  private fun updateFromApiData(err: IaphubError?, response: NetworkResponse?, completion: (IaphubError?) -> Unit) {
     var data = response?.data
-    var isUpdated = false
 
     // Handle 304 not modified
     if (response?.hasNotModified() == true) {
-      return completion(null, isUpdated)
+      // Update all products details
+      this.updateAllProductsDetails {
+        // Call completion
+        completion(null)
+      }
+      return
     }
     // Handle errors
     if (err != null) {
@@ -764,32 +756,30 @@ internal class User {
       }
       // Otherwise return an error
       else {
-        return completion(err, isUpdated)
+        // Update all products details
+        this.updateAllProductsDetails {
+          // Call completion
+          completion(err)
+        }
+        return
       }
     }
     // Check data
     if (data == null) {
-      return completion(IaphubError(IaphubErrorCode.unexpected), isUpdated)
+      return completion(IaphubError(IaphubErrorCode.unexpected))
     }
-    // Save products dictionary
-    val oldData = this.getData(productsOnly = true)
     // Update data
     this.update(data) { updateErr ->
       // Check error
       if (updateErr != null) {
-        return@update completion(updateErr, isUpdated)
-      }
-      // Check if the user has been updated
-      val newData = this.getData(productsOnly = true)
-      if (!this.sameProducts(newData, oldData)) {
-        isUpdated = true
+        return@update completion(updateErr)
       }
       // Update isServerDataFetched
       this.isServerDataFetched = true
       // Update ETag
       response?.getHeader("ETag")?.let { this.etag = it }
       // Call completion
-      completion(null, isUpdated)
+      completion(null)
     }
   }
 
@@ -884,30 +874,23 @@ internal class User {
   }
 
   /*
-   * Update filtered products
+   * Update all products details
    */
-  private fun updateFilteredProducts(completion: (Boolean) -> Unit) {
-    // Call completion on empty array
-    if (this.filteredProductsForSale.isEmpty()) {
-      return completion(false)
-    }
-    // Get products details
-    this.updateProductsDetails(this.filteredProductsForSale) {
+  private fun updateAllProductsDetails(completion: () -> Unit) {
+    val products: List<Product> = this.productsForSale + this.activeProducts + this.filteredProductsForSale
+
+    this.updateProductsDetails(products) {
       // Detect recovered products
       val recoveredProducts = this.filteredProductsForSale.filter { product -> product.details != null }
-      // Add to list of products for sale
-      this.productsForSale = this.productsForSale + recoveredProducts
-      // Update filtered products for sale
-      this.filteredProductsForSale = this.filteredProductsForSale.filter { product -> product.details == null }
-      // If we recovered products
+
       if (recoveredProducts.isNotEmpty()) {
-        // Call completion
-        completion(true)
+        // Add to list of products for sale
+        this.productsForSale = this.productsForSale + recoveredProducts
+        // Update filtered products for sale
+        this.filteredProductsForSale = this.filteredProductsForSale.filter { product -> product.details == null }
       }
-      // Otherwise just call the completion
-      else {
-        completion(false)
-      }
+      // Call completion
+      completion()
     }
   }
 
