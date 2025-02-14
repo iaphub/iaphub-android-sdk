@@ -16,8 +16,6 @@ class SDKTesting(private val sdk: SDK) {
   var mockedProductDetails: List<ProductDetails>? = null
   // Disable/enable logs
   var logs: Boolean? = null
-  // Disable/enable pricing cache
-  var pricingCache: Boolean? = null
 
   /**
    * Notify store ready

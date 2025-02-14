@@ -58,6 +58,8 @@ class TestIntegration {
                 iaphubStarted = true
                 context = it
                 Iaphub.start(context=it, appId="61718bfd9bf07f0c7d2357d1",  apiKey="Usaw9viZNrnYdNSwPIFFo7iUxyjK23K3", allowAnonymousPurchase=true)
+                // Delete cache
+                Iaphub.testing.clearCachedUser()
             }
             // Add listeners
             Iaphub.setOnErrorListener { err ->
@@ -78,8 +80,6 @@ class TestIntegration {
             }
             // Reset mock of requests
             Iaphub.testing.mockNetworkRequest(null)
-            // Delete cache
-            Iaphub.testing.clearCachedUser()
         }
     }
 
@@ -165,23 +165,14 @@ class TestIntegration {
     @Test
     fun test03_getProductsForSale() {
         val waiter = Waiter()
-        var pricePosted = false
+        var userFetched = false
 
-        Iaphub.testing.pricingCache = false
-        Iaphub.testing.mockNetworkRequest() { type, route, params ->
-            if (route.contains("/pricing")) {
-                val products = params["products"] as? List<Map<String, Any>>
-                val product = products?.get(0)
-
-                if (product != null) {
-                    if (product["price"] as? Double == 1.99 && product["currency"] as? String == "USD") {
-                        pricePosted = true
-                    }
-                }
+        Iaphub.testing.mockNetworkRequest() { _, route, _ ->
+            if (route.contains("/user")) {
+                userFetched = true
             }
             return@mockNetworkRequest null
         }
-        Iaphub.testing.forceUserRefresh()
         Iaphub.getProductsForSale { err, products ->
             // Should return the products with no error
             waiter.assertNull(err)
@@ -192,11 +183,10 @@ class TestIntegration {
             waiter.assertEquals("$1.99", products?.get(0)?.localizedPrice)
             waiter.assertEquals("Consumable", products?.get(0)?.localizedTitle)
             waiter.assertEquals("This is a consumable", products?.get(0)?.localizedDescription)
-            waiter.assertEquals(true, pricePosted)
+            waiter.assertEquals(false, userFetched)
             // The user should have been cached
             waiter.assertNotNull(Iaphub.testing.getFromCache("iaphub_user_a_61718bfd9bf07f0c7d2357d1"))
 
-            Iaphub.testing.pricingCache = true
             waiter.resume()
         }
 
