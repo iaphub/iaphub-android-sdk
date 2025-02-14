@@ -48,6 +48,8 @@ internal class User {
   internal var isServerLoginEnabled: Boolean = false
   // Indicates if the user data has been fetched from the server
   internal var isServerDataFetched: Boolean = false
+  // Indicates if the filtered products are currently being updated
+  internal var isUpdatingFilteredProducts: Boolean = false
   // Indicates if the user needs to be fetched
   internal var needsFetch: Boolean = false
   // Latest receipt post date
@@ -215,6 +217,18 @@ internal class User {
       this.receiptPostDate?.after(this.fetchDate!!) == true
     ) {
       shouldFetch = true
+    }
+    // Update products details if we had an error or filtered products
+    if (!shouldFetch && this.filteredProductsForSale.isNotEmpty()) {
+      this.updateFilteredProducts() { isUpdated ->
+        // Trigger onUserUpdate on update
+        if (isUpdated) {
+          this.onUserUpdate?.let { it() }
+        }
+        // Call completion
+        completion?.let { it(null, false, isUpdated) }
+      }
+      return
     }
     // Call completion if fetch not requested
     if (!shouldFetch) {
@@ -891,6 +905,39 @@ internal class User {
       }
       // Call completion
       completion()
+    }
+  }
+
+  /*
+   * Update filtered products
+   */
+  @Synchronized
+  private fun updateFilteredProducts(completion: (Boolean) -> Unit) {
+    // Check if the filtered products are currently being updated and return completion if true
+    if (this.isUpdatingFilteredProducts) {
+      return completion(false)
+    }
+    // Update property
+    this.isUpdatingFilteredProducts = true
+    // Get products details
+    this.updateProductsDetails(this.filteredProductsForSale) {
+      // Detect recovered products
+      val recoveredProducts = this.filteredProductsForSale.filter { product -> product.details != null }
+      // Add to list of products for sale
+      this.productsForSale = this.productsForSale + recoveredProducts
+      // Update filtered products for sale
+      this.filteredProductsForSale = this.filteredProductsForSale.filter { product -> product.details == null }
+      // If we recovered products
+      if (recoveredProducts.isNotEmpty()) {
+        // Call completion
+        completion(true)
+      }
+      // Otherwise just call the completion
+      else {
+        completion(false)
+      }
+      // Update property
+      this.isUpdatingFilteredProducts = false
     }
   }
 
