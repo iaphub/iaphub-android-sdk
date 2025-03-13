@@ -654,6 +654,24 @@ internal class User {
     if (!this.isServerDataFetched) {
       context.properties.add(UserFetchContextProperty.INITIALIZATION)
     }
+    // Add last fetch context
+    this.fetchDate?.let { fetchDate ->
+      val timeSinceLastFetch = (Date().time - fetchDate.time) / 1000
+      
+      if (timeSinceLastFetch < 10) {
+        context.properties.add(UserFetchContextProperty.LAST_FETCH_UNDER_TEN_SECONDS)
+      }
+      else if (timeSinceLastFetch < 60) {
+        context.properties.add(UserFetchContextProperty.LAST_FETCH_UNDER_ONE_MINUTE)
+      }
+      else if (timeSinceLastFetch < 3600) {
+        context.properties.add(UserFetchContextProperty.LAST_FETCH_UNDER_ONE_HOUR)
+      }
+      else if (timeSinceLastFetch < 86400) {
+        context.properties.add(UserFetchContextProperty.LAST_FETCH_UNDER_ONE_DAY)
+      }
+      else {}
+    }
     // Save products dictionary
     val oldData = this.getData(productsOnly = true)
     // Get data from API
