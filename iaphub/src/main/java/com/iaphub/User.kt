@@ -753,6 +753,10 @@ internal class User {
   private fun updateFromApiData(err: IaphubError?, response: NetworkResponse?, completion: (IaphubError?) -> Unit) {
     var data = response?.data
 
+    // Update isServerDataFetched if there's no error
+    if (err == null) {
+      this.isServerDataFetched = true
+    }
     // Handle 304 not modified
     if (response?.hasNotModified() == true) {
       // Update all products details
@@ -766,6 +770,7 @@ internal class User {
     if (err != null) {
       // Clear products if the platform is disabled
       if (err.code == "server_error" && err.subcode == "platform_disabled") {
+        this.isServerDataFetched = true
         data = mapOf("productsForSale" to emptyList<Any>(), "activeProducts" to emptyList<Any>())
       }
       // Otherwise return an error
@@ -788,8 +793,6 @@ internal class User {
       if (updateErr != null) {
         return@update completion(updateErr)
       }
-      // Update isServerDataFetched
-      this.isServerDataFetched = true
       // Update ETag
       response?.getHeader("ETag")?.let { this.etag = it }
       // Call completion
