@@ -360,10 +360,10 @@ internal class User {
    */
   fun getProductBySku(sku: String, completion: (Product?) -> Unit) {
     // Search in products for sale
-    var product = this.productsForSale.find { product -> product.sku == sku }
+    var product = this.productsForSale.find { item -> item.sku == sku }
     // Search in active products
     if (product == null) {
-      this.activeProducts.find { product -> product.sku == sku }
+      product = this.activeProducts.find { item -> item.sku == sku }
     }
     // Return product
     completion(product)
