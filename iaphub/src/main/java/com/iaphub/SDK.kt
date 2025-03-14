@@ -355,7 +355,7 @@ open class SDK: LifecycleObserver
       user.refresh(UserFetchContext(
         source = UserFetchContextSource.PRODUCTS,
         properties = mutableListOf(UserFetchContextProperty.ON_FOREGROUND)
-      )) { _, _, _ ->
+      ), interval = 2) { _, _, _ ->
         // Refresh store
         this.store?.refresh()
       }
