@@ -304,7 +304,7 @@ internal class User {
         return@refresh completion(err, null)
       }
       // Otherwise return the products
-      val subscriptionStates = arrayOf("active", "gracePeriod") + includeSubscriptionStates
+      val subscriptionStates = arrayOf("active", "grace_period") + includeSubscriptionStates
       val activeProducts = this.activeProducts.filter { activeProduct ->
         // Return product if it has no subscription state
         if (activeProduct.subscriptionState == null) {
