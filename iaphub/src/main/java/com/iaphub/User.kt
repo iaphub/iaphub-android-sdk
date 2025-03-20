@@ -775,19 +775,10 @@ internal class User {
     if (err == null) {
       this.isServerDataFetched = true
     }
-    // Handle 304 not modified
-    if (response?.hasNotModified() == true) {
-      // Update all products details
-      this.updateAllProductsDetails {
-        // Call completion
-        completion(null)
-      }
-      return
-    }
-    // Handle errors
-    if (err != null) {
+    // Handle error or 304 non modified
+    if (err != null || response?.hasNotModifiedStatusCode() == true) {
       // Clear products if the platform is disabled
-      if (err.code == "server_error" && err.subcode == "platform_disabled") {
+      if (err?.code == "server_error" && err.subcode == "platform_disabled") {
         this.isServerDataFetched = true
         data = mapOf("productsForSale" to emptyList<Any>(), "activeProducts" to emptyList<Any>())
       }

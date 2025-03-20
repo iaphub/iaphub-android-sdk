@@ -18,16 +18,27 @@ internal class NetworkResponse(
     var httpResponse: Response? = null
 ) {
     fun getHeader(name: String): String? {
-        return httpResponse?.header(name)
+      return httpResponse?.header(name)
     }
 
-    fun hasInternalError(): Boolean {
-        return (httpResponse?.code ?: 0) >= 500
+    fun hasSuccessStatusCode(): Boolean {
+      return (httpResponse?.code ?: 0) == 200
     }
 
-    fun hasNotModified(): Boolean {
-        return (httpResponse?.code ?: 0) == 304
+    fun hasNotModifiedStatusCode(): Boolean {
+      return (httpResponse?.code ?: 0) == 304
     }
+
+    fun hasTooManyRequestsStatusCode(): Boolean {
+      return (httpResponse?.code ?: 0) == 429
+    }
+
+    fun hasServerErrorStatusCode(): Boolean {
+      val statusCode = httpResponse?.code ?: 0
+
+      return statusCode >= 500 && statusCode < 600
+    }
+
 }
 
 internal class Network {
@@ -77,12 +88,12 @@ internal class Network {
       delay=1,
       task={ callback ->
         this.sendRequest(type=type, route=route, params=params, headers=headers, connectTimeout=connectTimeout, timeout=timeout) { err, networkResponse ->
-          // Retry request if the request failed with a network error
-          if (err != null && err.code == "network_error") {
-            callback(true, err, networkResponse)
+          // Retry request if we have no response
+          if (networkResponse == null) {
+            callback(true, err, null)
           }
-          // Retry request if the request failed with status code >= 500
-          else if (networkResponse?.hasInternalError() == true) {
+          // Retry request if we have a 5XX status code
+          else if (networkResponse.hasServerErrorStatusCode()) {
             callback(true, err, networkResponse)
           }
           // Otherwise do not retry
@@ -93,7 +104,7 @@ internal class Network {
       },
       completion={ err, networkResponse ->
         // Send error if there is one
-        if (err != null && silentLog != true) {
+        if (err != null && !silentLog && networkResponse?.hasTooManyRequestsStatusCode() != true) {
           err.send()
         }
         // Call completion
@@ -183,8 +194,12 @@ internal class Network {
             // Create network response
             val networkResponse = NetworkResponse(httpResponse = response)
             // Return response on not modified status code
-            if (networkResponse.hasNotModified()) {
+            if (networkResponse.hasNotModifiedStatusCode()) {
               return completion(null, networkResponse)
+            }
+            // Return error if we did not receive a 200 status code
+            if (!networkResponse.hasSuccessStatusCode()) {
+              return completion(IaphubError(IaphubErrorCode.network_error, IaphubNetworkErrorCode.status_code_error, params=infos, silent=true), networkResponse)
             }
             // Get json string
             val jsonString = response.body?.string()
