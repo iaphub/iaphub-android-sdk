@@ -22,6 +22,8 @@ internal class User {
   internal var fetchDate: Date? = null
   // ETag for HTTP caching
   internal var etag: String? = null
+  // Foreground refresh interval
+  internal var foregroundRefreshInterval: Long? = null
 
 
   // SDK
@@ -264,20 +266,26 @@ internal class User {
   }
 
   /*
-   * Refresh user with a shorter interval if the user has an active subscription (otherwise every 24 hours by default)
+   * Refresh user with a dynamic interval
    */
   fun refresh(context: UserFetchContext, completion: ((IaphubError?, Boolean, Boolean) -> Unit)? = null) {
+    var interval: Long = 86400
+
+    // If this is an on foreground refresh, use the foreground refresh interval if defined
+    if (context.properties.contains(UserFetchContextProperty.ON_FOREGROUND)) {
+      foregroundRefreshInterval?.let { interval = it }
+    }
     // Refresh user
-    this.refresh(context = context, interval = 60 * 60 * 24) { err, isFetched, isUpdated ->
+    this.refresh(context = context, interval) { err, isFetched, isUpdated ->
       // Check if there is an error
       if (err != null) {
         completion?.let { it(err, isFetched, isUpdated) }
         return@refresh
       }
-      // If the user has not been fetched, look if there is active subscriptions
-      if (isFetched == false) {
+      // If the user has not been fetched and the interval is over 60s, check for active subscriptions
+      if (isFetched == false && interval > 60) {
         val subscription = this.activeProducts.find { product -> arrayOf("renewable_subscription", "subscription").contains(product.type) }
-        // If we have an active subscription refresh every minute
+        // If there are active subscriptions, refresh every minute
         if (subscription != null) {
           this.refresh(context = context, interval = 60, completion = completion)
         }
@@ -759,7 +767,8 @@ internal class User {
         "etag" to this.etag as? Any,
         "isServerLoginEnabled" to this.isServerLoginEnabled,
         "filteredProductsForSale" to this.filteredProductsForSale.map { product -> product.getData() },
-        "cacheVersion" to Config.cacheVersion
+        "cacheVersion" to Config.cacheVersion,
+        "foregroundRefreshInterval" to this.foregroundRefreshInterval
       ))
     }
     return data
@@ -771,9 +780,14 @@ internal class User {
   private fun updateFromApiData(err: IaphubError?, response: NetworkResponse?, completion: (IaphubError?) -> Unit) {
     var data = response?.data
 
-    // Update isServerDataFetched if there's no error
+    // If there's no error
     if (err == null) {
+      // Update isServerDataFetched
       this.isServerDataFetched = true
+      // Update ETag
+      response?.getHeader("ETag")?.let { this.etag = it }
+      // Update foreground refresh interval
+      response?.getHeader("X-Foreground-Refresh-Interval")?.let { this.foregroundRefreshInterval = it.toLongOrNull() }
     }
     // Handle error or 304 non modified
     if (err != null || response?.hasNotModifiedStatusCode() == true) {
@@ -802,8 +816,6 @@ internal class User {
       if (updateErr != null) {
         return@update completion(updateErr)
       }
-      // Update ETag
-      response?.getHeader("ETag")?.let { this.etag = it }
       // Call completion
       completion(null)
     }
@@ -1095,6 +1107,7 @@ internal class User {
         this.isServerLoginEnabled = jsonMap["isServerLoginEnabled"] as? Boolean ?: false
         this.paywallId = jsonMap["paywallId"] as? String
         this.etag = jsonMap["etag"] as? String
+        this.foregroundRefreshInterval = (jsonMap["foregroundRefreshInterval"] as? Number)?.toLong()
       }
       completion()
     }
