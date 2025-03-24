@@ -21,9 +21,15 @@ enum class UserFetchContextProperty(val value: String) {
 
 class UserFetchContext(
    val source: UserFetchContextSource,
-   val properties: MutableList<UserFetchContextProperty> = mutableListOf()
+   val properties: MutableList<UserFetchContextProperty> = mutableListOf(),
+   val refreshInterval: Long? = null
 ) {
    fun getValue(): String {
       return (listOf(source.value) + properties.map { it.value }).joinToString("/")
    }
+
+   fun withRefreshInterval(interval: Long): UserFetchContext {
+      return UserFetchContext(source, properties.toMutableList(), interval)
+   }
+
 }

@@ -238,7 +238,7 @@ internal class User {
       return
     }
     // Otherwise fetch user
-    this.fetch(context) {err, isUpdated ->
+    this.fetch(context.withRefreshInterval(interval)) {err, isUpdated ->
       // Check if there is an error
       if (err != null) {
         // Return an error if the user has never been fetched

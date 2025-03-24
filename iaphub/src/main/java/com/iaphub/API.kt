@@ -29,6 +29,10 @@ internal class API {
 
     // Add context
     params["context"] = context.getValue()
+    // Add context refresh interval
+    context.refreshInterval?.let {
+      params["refreshInterval"] = "$it"
+    }
     // Add If-None-Match header
     val etag = this.user.etag
     if (etag != null) {
