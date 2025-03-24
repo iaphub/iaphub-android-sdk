@@ -651,6 +651,9 @@ internal class User {
       else if (timeSinceLastFetch < 60) {
         context.properties.add(UserFetchContextProperty.LAST_FETCH_UNDER_ONE_MINUTE)
       }
+      else if (timeSinceLastFetch < 600) {
+        context.properties.add(UserFetchContextProperty.LAST_FETCH_UNDER_TEN_MINUTES)
+      }
       else if (timeSinceLastFetch < 3600) {
         context.properties.add(UserFetchContextProperty.LAST_FETCH_UNDER_ONE_HOUR)
       }

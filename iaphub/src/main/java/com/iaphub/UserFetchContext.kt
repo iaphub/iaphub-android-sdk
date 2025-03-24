@@ -13,6 +13,7 @@ enum class UserFetchContextProperty(val value: String) {
    WITH_ACTIVE_NON_CONSUMABLE("wanc"),       // The user has an active non consumable
    LAST_FETCH_UNDER_TEN_SECONDS("lfu10s"),   // Last fetch occurred under ten seconds
    LAST_FETCH_UNDER_ONE_MINUTE("lfu1m"),     // Last fetch occurred under one minute
+   LAST_FETCH_UNDER_TEN_MINUTES("lfu10m"),     // Last fetch occurred under ten minutes
    LAST_FETCH_UNDER_ONE_HOUR("lfu1h"),       // Last fetch occurred under one hour
    LAST_FETCH_UNDER_ONE_DAY("lfu1d"),        // Last fetch occurred under one day
    ON_FOREGROUND("ofg"),                     // Occurred when the app went to foreground
