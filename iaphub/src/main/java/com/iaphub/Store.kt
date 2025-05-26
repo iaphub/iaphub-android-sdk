@@ -21,7 +21,7 @@ internal interface Store {
   /**
    * Buy
    */
-  fun buy(activity: Activity, options: Map<String, String?>, completion: (IaphubError?, ReceiptTransaction?) -> Unit)
+  fun buy(activity: Activity, product: Product, options: Map<String, String?>, completion: (IaphubError?, ReceiptTransaction?) -> Unit)
 
   /**
    * Restore

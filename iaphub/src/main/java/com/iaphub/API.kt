@@ -70,6 +70,19 @@ internal class API {
   }
 
   /*
+   * Get product
+   */
+  fun getProduct(sku: String, completion: (IaphubError?, NetworkResponse?) -> Unit) {
+    this.network.send(
+      type="GET",
+      route="/app/${this.user.sdk.appId}/product/${sku}",
+      retry=0,
+      connectTimeout=2,
+      completion=completion
+    )
+  }
+
+  /*
    * Login
    */
   fun login(currentUserId: String, newUserId: String, completion: (IaphubError?) -> Unit) {

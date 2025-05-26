@@ -109,8 +109,6 @@ internal class User {
    * Buy product
    */
   fun buy(activity: Activity, sku: String, prorationMode: String? = null, crossPlatformConflict: Boolean = true, completion: (IaphubError?, ReceiptTransaction?) -> Unit) {
-    val options = mutableMapOf("sku" to sku, "prorationMode" to prorationMode)
-
     // Create purchase intent
     this.createPurchaseIntent(sku) { err ->
       // Check if there is an error
@@ -124,33 +122,21 @@ internal class User {
           return@refresh this.confirmPurchaseIntent(err, null, completion)
         }
         // Get product details
-        this.getProductBySku(sku) { product ->
-          // If we have the product (we could not have the products if the user purchases a product that isn't in the products for sale)
-          if (product != null) {
-            // Check for cross platform conflicts if it is a subscription
-            if (product.type.contains("subscription")) {
-              val conflictedSubscription = this.activeProducts.find { item -> item.type.contains("subscription") && item.platform != "android" }
-              if (crossPlatformConflict && conflictedSubscription != null) {
-                return@getProductBySku this.confirmPurchaseIntent(IaphubError(IaphubErrorCode.cross_platform_conflict, null,"platform: ${conflictedSubscription.platform}"), null, completion)
-              }
-            }
-            // Check for renewable subscription replace
-            if (product.type == "renewable_subscription" && product.group != null) {
-              val subscriptionToReplace = this.activeProducts.find { item -> item.type == "renewable_subscription" && item.group == product.group && item.androidToken != null }
-
-              if (subscriptionToReplace != null) {
-                options["oldPurchaseToken"] = subscriptionToReplace.androidToken
-              }
-              // Check if the product is already going to be replaced on next renewal date
-              val subscriptionRenewalProduct = this.activeProducts.find { item -> item.subscriptionRenewalProductSku == sku && item.subscriptionState == "active" }
-              if (subscriptionRenewalProduct != null) {
-                return@getProductBySku this.confirmPurchaseIntent(IaphubError(IaphubErrorCode.product_change_next_renewal, params = mapOf("sku" to sku)), null, completion)
-              }
-            }
+        this.getProductBySku(sku) { err, product ->
+          // We must have the product
+          if (product == null) {
+            return@getProductBySku this.confirmPurchaseIntent(err ?: IaphubError(IaphubErrorCode.unexpected), null, completion)
           }
-          // Launch purchase
-          this.sdk.store?.buy(activity, options) { err, transaction ->
-            this.confirmPurchaseIntent(err, transaction, completion)
+          // Check subscription safeties
+          this.checkSubscriptionSafeties(product, crossPlatformConflict) { err ->
+            // Check if there is an error
+            if (err != null) {
+              return@checkSubscriptionSafeties this.confirmPurchaseIntent(err, null, completion)
+            }
+            // Launch purchase
+            this.sdk.store?.buy(activity, product, mapOf("prorationMode" to prorationMode)) { err, transaction ->
+              this.confirmPurchaseIntent(err, transaction, completion)
+            }
           }
         }
       }
@@ -364,20 +350,6 @@ internal class User {
   }
 
   /*
-   * Get product by its sku
-   */
-  fun getProductBySku(sku: String, completion: (Product?) -> Unit) {
-    // Search in products for sale
-    var product = this.productsForSale.find { item -> item.sku == sku }
-    // Search in active products
-    if (product == null) {
-      product = this.activeProducts.find { item -> item.sku == sku }
-    }
-    // Return product
-    completion(product)
-  }
-
-  /*
    * Set tags
    */
   @Synchronized
@@ -543,9 +515,7 @@ internal class User {
     // Build params
     val params = mutableMapOf(
       "data" to mutableMapOf(
-        "body" to mapOf(
-          "message" to mapOf("body" to options["message"])
-        ),
+        "body" to mapOf("message" to mapOf("body" to options["message"])),
         "level" to (options["level"] ?: "error"),
         "environment" to Iaphub.environment,
         "platform" to Config.sdk,
@@ -636,6 +606,81 @@ internal class User {
   }
 
   /******************************** PRIVATE ********************************/
+
+  /**
+   * Check subscription safeties
+   */
+  private fun checkSubscriptionSafeties(product: Product, crossPlatformConflict: Boolean, completion: (IaphubError?) -> Unit) {
+    // No need to check if the product is not a subscription
+    if (!product.type.contains("subscription")) {
+      return completion(null)
+    }
+    // Check if the subscription is already active
+    val activeSubscription = this.activeProducts.find { item -> item.sku == product.sku }
+    if (activeSubscription != null) {
+      return completion(IaphubError(IaphubErrorCode.product_already_purchased, params = mapOf("sku" to product.sku)))
+    }
+    // Check for cross platform conflicts
+    val conflictedSubscription = this.activeProducts.find { item -> item.type.contains("subscription") && item.platform != "android" }
+    if (crossPlatformConflict && conflictedSubscription != null) {
+      return completion(IaphubError(IaphubErrorCode.cross_platform_conflict, null,"platform: ${conflictedSubscription.platform}"))
+    }
+    // Check if the product is already going to be replaced on next renewal date
+    val replacedProduct = this.activeProducts.find { item -> item.subscriptionRenewalProductSku == product.sku && item.subscriptionState == "active" }
+    if (replacedProduct != null) {
+      return completion(IaphubError(IaphubErrorCode.product_change_next_renewal, params = mapOf("sku" to product.sku)))
+    }
+
+    return completion(null)
+  }
+
+  /*
+   * Get product by sku
+   */
+  private fun getProductBySku(sku: String, completion: (IaphubError?, Product?) -> Unit) {
+    val product = this.productsForSale.find { item -> item.sku == sku } ?:
+                  this.filteredProductsForSale.find { item -> item.sku == sku } ?:
+                  this.activeProducts.find { item -> item.sku == sku }
+  
+    if (product != null) {
+      return completion(null, product)
+    }
+    this.api.getProduct(sku) { err, response ->
+      if (err != null) {
+        return@getProduct completion(err, null)
+      }
+      val parsedProduct = response?.data?.let { 
+        try {
+          Product(it)
+        }
+        catch (e: Exception) {
+          return@getProduct completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.product_parsing_failed, e.message), null)
+        }
+      }
+      completion(null, parsedProduct)
+    }
+  }
+
+  /*
+   * Get products by sku
+   */
+  internal fun getProductsBySku(skus: List<String>, completion: (IaphubError?, List<Product>?) -> Unit) {
+    Util.eachSeriesWithResult(
+      skus,
+      { sku: String, callback: (IaphubError?, Product?) -> Unit ->
+        this.getProductBySku(sku) { err, product ->
+          callback(err, product)
+        }
+      },
+      { err: IaphubError?, products: List<Product>? ->
+        if (err != null) {
+          completion(err, null)
+        } else {
+          completion(null, products)
+        }
+      }
+    )
+  }
 
   /**
    * Fetch user from API

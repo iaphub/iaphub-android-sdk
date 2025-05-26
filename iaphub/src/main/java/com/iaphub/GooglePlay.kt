@@ -4,7 +4,6 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.util.Log
 import androidx.core.content.ContextCompat.startActivity
 import com.android.billingclient.api.*
 import java.lang.Exception
@@ -90,7 +89,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
    * Buy
    */
   @Synchronized
-  override fun buy(activity: Activity, options: Map<String, String?>, completion: (IaphubError?, ReceiptTransaction?) -> Unit) {
+  override fun buy(activity: Activity, product: Product, options: Map<String, String?>, completion: (IaphubError?, ReceiptTransaction?) -> Unit) {
     // Return an error if a buy request is currently processing
     if (this.buyRequest != null) {
       return completion(IaphubError(IaphubErrorCode.buy_processing), null)
@@ -99,79 +98,37 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
     if (this.isRestoring) {
       return completion(IaphubError(IaphubErrorCode.restore_processing), null)
     }
-    // Get and check sku
-    val sku = options["sku"]
-    if (sku == null) {
-      return completion(IaphubError(IaphubErrorCode.unexpected, null, "product sku not specified"), null)
-    }
     // Save buy request
-    this.buyRequest = BuyRequest(sku, options, completion)
+    this.buyRequest = BuyRequest(product.sku, options, completion)
     // Handle mock
     if (this.sdk.testing.storeLibraryMock == true) {
       val self = this
       Timer().schedule(timerTask {
-        self.purchaseQueue?.add(self.createFakePurchase(sku))
+        self.purchaseQueue?.add(self.createFakePurchase(product.sku))
       }, 200)
       return
     }
-    // Get product query
-    this.getProductQuery(sku) { err, productQuery ->
+    // Check subscription replacement
+    this.checkSubscriptionReplacement(product) { err, oldPurchaseToken ->
       // Check error
-      if (productQuery == null) {
+      if (err != null) {
         this.buyRequest = null
-        return@getProductQuery completion(err ?: IaphubError(IaphubErrorCode.unexpected), null)
+        return@checkSubscriptionReplacement completion(err, null)
       }
-      try {
-        // Create billing flow params
-        val billingFlowParams = BillingFlowParams.newBuilder()
-        // Create product details prams
-        val productDetailsParams = BillingFlowParams.ProductDetailsParams.newBuilder()
-          .setProductDetails(productQuery.details)
-        // We must set the offer token
-        val subscriptionOfferDetails = productQuery.getSubscriptionOffer()
-        if (subscriptionOfferDetails != null) {
-          productDetailsParams.setOfferToken(subscriptionOfferDetails.offerToken)
+      // Build billing flow params
+      this.buildBillingFlowParams(sku=product.sku, oldPurchaseToken=oldPurchaseToken, prorationMode=options["prorationMode"]) { err, billingFlowParams ->
+        // Check error
+        if (err != null || billingFlowParams == null) {
+          this.buyRequest = null
+          return@buildBillingFlowParams completion(err ?: IaphubError(IaphubErrorCode.unexpected), null)
         }
-        billingFlowParams.setProductDetailsParamsList(listOf(productDetailsParams.build()))
-        // Handle subscription replace options for subscriptions
-        if (productQuery.details.productType == BillingClient.ProductType.SUBS && options["oldPurchaseToken"] != null) {
-          val subscriptionUpdateParams = BillingFlowParams.SubscriptionUpdateParams.newBuilder()
-          // Look for purchaseToken option
-          val oldPurchaseToken = options["oldPurchaseToken"]
-          if (oldPurchaseToken != null) {
-            subscriptionUpdateParams.setOldPurchaseToken(oldPurchaseToken)
-          }
-          // Look for prorationMode option
-          val prorationMode = options["prorationMode"]
-          if (prorationMode == "immediate_with_time_proration") {
-            subscriptionUpdateParams.setSubscriptionReplacementMode(BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.WITH_TIME_PRORATION)
-          } else if (prorationMode == "immediate_and_charge_full_price") {
-            subscriptionUpdateParams.setSubscriptionReplacementMode(BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.CHARGE_FULL_PRICE)
-          } else if (prorationMode == "immediate_and_charge_prorated_price") {
-            subscriptionUpdateParams.setSubscriptionReplacementMode(BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.CHARGE_PRORATED_PRICE)
-          } else if (prorationMode == "immediate_without_proration") {
-            subscriptionUpdateParams.setSubscriptionReplacementMode(BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.WITHOUT_PRORATION)
-          } else if (prorationMode == "deferred") {
-            subscriptionUpdateParams.setSubscriptionReplacementMode(BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.DEFERRED)
-          } else if (prorationMode != null) {
-            this.buyRequest = null
-            return@getProductQuery completion(IaphubError(IaphubErrorCode.unexpected, IaphubUnexpectedErrorCode.proration_mode_invalid, "value: ${prorationMode}", mapOf("prorationMode" to prorationMode)), null)
-          }
-          // Add subscription params to builder
-          billingFlowParams.setSubscriptionUpdateParams(subscriptionUpdateParams.build())
-        }
-        // Launch billing flow (must be executed on the main thread according to the doc)
-        val builtBillingFlowParams = billingFlowParams.build()
-        this.launchBillingFlow(activity, builtBillingFlowParams) { err ->
+        // Launch billing flow
+        this.launchBillingFlow(activity, billingFlowParams) { err ->
           if (err != null) {
             this.buyRequest = null
             completion(err, null)
           }
         }
-      }
-      catch (err: Exception) {
-        this.buyRequest = null
-        completion(IaphubError(IaphubErrorCode.unexpected, null, err.message), null)
       }
     }
   }
@@ -472,6 +429,155 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
   }
 
   /************************************ Private ************************************/
+
+  /**
+   * Get active subscriptions
+   */
+  private fun getActiveSubscriptions(completion: (IaphubError?, List<Purchase>) -> Unit) {
+    // Wait for billing to be ready
+    this.whenBillingReady { err, billing ->
+      // Return an error if the billing isn't ready
+      if (err != null || billing == null) {
+        return@whenBillingReady completion(err, listOf())
+      }
+      // Get subscriptions
+      billing.queryPurchasesAsync(QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.SUBS).build()) { billingResult, subscriptionPurchases ->
+        if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
+          return@queryPurchasesAsync completion(this.getErrorFromBillingResult(billingResult, "queryPurchasesAsync"), listOf())
+        }
+        completion(null, subscriptionPurchases)
+      }
+    }
+  }
+
+  /**
+   * Build billing flow params
+   */
+  private fun buildBillingFlowParams(sku: String, oldPurchaseToken: String?, prorationMode: String?, completion: (IaphubError?, BillingFlowParams?) -> Unit) {
+    // Get product query
+    this.getProductQuery(sku) { err, productQuery ->
+      // Check error
+      if (productQuery == null) {
+        return@getProductQuery completion(err ?: IaphubError(IaphubErrorCode.unexpected), null)
+      }
+      // Create billing flow params
+      try {
+        val billingFlowParams = BillingFlowParams.newBuilder()
+        // Create product details prams
+        val productDetailsParams = BillingFlowParams.ProductDetailsParams.newBuilder()
+          .setProductDetails(productQuery.details)
+        // We must set the offer token
+        val subscriptionOfferDetails = productQuery.getSubscriptionOffer()
+        if (subscriptionOfferDetails != null) {
+          productDetailsParams.setOfferToken(subscriptionOfferDetails.offerToken)
+        }
+        billingFlowParams.setProductDetailsParamsList(listOf(productDetailsParams.build()))
+        // Handle subscription replace options for subscriptions
+        if (productQuery.details.productType == BillingClient.ProductType.SUBS && oldPurchaseToken != null) {
+          // Add old purchase token
+          val subscriptionUpdateParams = BillingFlowParams.SubscriptionUpdateParams.newBuilder()
+          subscriptionUpdateParams.setOldPurchaseToken(oldPurchaseToken)
+          // Add proration mode
+          if (prorationMode == "immediate_with_time_proration") {
+            subscriptionUpdateParams.setSubscriptionReplacementMode(BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.WITH_TIME_PRORATION)
+          } else if (prorationMode == "immediate_and_charge_full_price") {
+            subscriptionUpdateParams.setSubscriptionReplacementMode(BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.CHARGE_FULL_PRICE)
+          } else if (prorationMode == "immediate_and_charge_prorated_price") {
+            subscriptionUpdateParams.setSubscriptionReplacementMode(BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.CHARGE_PRORATED_PRICE)
+          } else if (prorationMode == "immediate_without_proration") {
+            subscriptionUpdateParams.setSubscriptionReplacementMode(BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.WITHOUT_PRORATION)
+          } else if (prorationMode == "deferred") {
+            subscriptionUpdateParams.setSubscriptionReplacementMode(BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.DEFERRED)
+          } else if (prorationMode != null) {
+            return@getProductQuery completion(
+              IaphubError(
+                IaphubErrorCode.unexpected,
+                IaphubUnexpectedErrorCode.proration_mode_invalid,
+                "value: ${prorationMode}",
+                mapOf("prorationMode" to prorationMode)
+              ),
+              null
+            )
+          }
+          // Add subscription params to builder
+          billingFlowParams.setSubscriptionUpdateParams(subscriptionUpdateParams.build())
+        }
+        // Return billing flow params
+        completion(null, billingFlowParams.build())
+      }
+      catch (err: Exception) {
+        completion(IaphubError(IaphubErrorCode.unexpected, null, err.message), null)
+      }
+    }
+  }
+
+  /**
+   * Get subscription replacement token
+   */
+  private fun getSubscriptionReplacementToken(product: Product, completion: (IaphubError?, String?) -> Unit) {
+    this.getActiveSubscriptions() { err, activeSubscriptions ->
+      // Check error
+      if (err != null) {
+        return@getActiveSubscriptions completion(err, null)
+      }
+      // No need to do anything if we do not detect any active subscription
+      if (activeSubscriptions.isEmpty()) {
+        return@getActiveSubscriptions completion(null, null)
+      }
+      // Get the skus of the active subscriptions
+      val activeSubscriptionsSkus = activeSubscriptions.mapNotNull { item -> item.products.firstOrNull() }
+      // Get user
+      val user = this.sdk.user
+      if (user == null) {
+        return@getActiveSubscriptions completion(IaphubError(IaphubErrorCode.unexpected), null)
+      }
+      // Get products
+      user.getProductsBySku(activeSubscriptionsSkus) { err, products ->
+        // Check error
+        if (err != null || products == null) {
+          return@getProductsBySku completion(err ?: IaphubError(IaphubErrorCode.unexpected), null)
+        }
+        // Look for an active subscription of the same group
+        val productToReplace = products.find { item -> item.group == product.group }
+        val subscriptionToReplace = productToReplace?.let { activeSubscriptions.find { item -> item.products.contains(productToReplace.sku) } }
+        if (subscriptionToReplace != null) {
+          return@getProductsBySku completion(null, subscriptionToReplace.purchaseToken)
+        }
+        // Call completion if no result
+        completion(null, null)
+      }
+    }
+  }
+
+  /**
+   * Check subscription replacement
+   */
+  private fun checkSubscriptionReplacement(product: Product, completion: (IaphubError?, String?) -> Unit) {
+    // Skipping unnecessary check for non-renewable subscriptions or products without a group
+    if (product.type != "renewable_subscription" || product.group == null) {
+      return completion(null, null)
+    }
+    this.getSubscriptionReplacementToken(product) { err, token ->
+      // Check error
+      if (err != null) {
+        return@getSubscriptionReplacementToken completion(err, null)
+      }
+      // If no token is found
+      if (token == null) {
+        // Get user
+        val user = this.sdk.user
+        if (user == null) {
+          return@getSubscriptionReplacementToken completion(IaphubError(IaphubErrorCode.unexpected), null)
+        }
+        // Verify that there are no active Android subscriptions for the user. This would indicate that the subscription is associated with a different Google account.
+        val activeSubscription = user.activeProducts.find { item -> item.platform == "android" && item.type == "renewable_subscription" && item.group == product.group }
+        if (activeSubscription != null) {
+          return@getSubscriptionReplacementToken completion(IaphubError(IaphubErrorCode.cross_account_conflict), null)
+        }
+      }
+      completion(null, token)
+    }
+  }
 
   /**
    * Check if the billing is ready

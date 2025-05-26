@@ -173,6 +173,48 @@ internal object Util {
     next()
   }
 
+  /*
+   * Applies the function iterator to each item in arr in series and collects results.
+   */
+  fun <ListType, ResultType, ErrorType>eachSeriesWithResult(
+    list: List<ListType>,
+    iterator: (item: ListType, callback: (error: ErrorType?, result: ResultType?) -> Unit) -> Unit,
+    finished: (error: ErrorType?, results: List<ResultType>) -> Unit
+  ) {
+    val list: MutableList<ListType> = list.toMutableList()
+    val results: MutableList<ResultType> = mutableListOf()
+    var isFinishedCalled = false
+
+    val finishedOnce = { error: ErrorType? ->
+      if (!isFinishedCalled) {
+        isFinishedCalled = true
+        finished(error, results)
+      }
+    }
+
+    var next: (() -> Unit)? = null
+    next = { ->
+      if (list.isNotEmpty()) {
+        val item = list.removeAt(0)
+
+        iterator(item) { error, result ->
+          if (error != null) {
+            finishedOnce(error)
+          }
+          else {
+            result?.let { results.add(it) }
+            next?.let { it() }
+          }
+        }
+      }
+      else {
+        finishedOnce(null)
+      }
+    }
+
+    next()
+  }
+
   /**
    * Dispatch to main thread
    */
