@@ -10,8 +10,6 @@ open class ActiveProduct : Product {
   val purchaseDate: Date?
   // Platform of the purchase
   val platform: String?
-  // Android token
-  val androidToken: String?
   // If it is a sandbox transaction
   val isSandbox: Boolean
   // If it has been purchased using a promo code
@@ -50,7 +48,6 @@ open class ActiveProduct : Product {
     this.isPromo = (data["isPromo"] as? Boolean) ?: false
     this.isSandbox = (data["isSandbox"] as? Boolean) ?: false
     this.promoCode = data["promoCode"] as? String
-    this.androidToken = data["androidToken"] as? String
     // The following properties are for subscriptions only
     this.originalPurchase = data["originalPurchase"] as? String
     this.expirationDate = Util.dateFromIsoString(str=data["expirationDate"], allowNull=!this.type.contains("subscription")) { exception ->
@@ -107,8 +104,7 @@ open class ActiveProduct : Product {
       "subscriptionRenewalProduct" to this.subscriptionRenewalProduct as? Any?,
       "subscriptionRenewalProductSku" to this.subscriptionRenewalProductSku as? Any?,
       "subscriptionState" to this.subscriptionState as? Any?,
-      "subscriptionPeriodType" to this.subscriptionPeriodType as? Any?,
-      "androidToken" to this.androidToken as? Any?
+      "subscriptionPeriodType" to this.subscriptionPeriodType as? Any?
     )
 
     return LinkedHashMap(data1).apply { putAll(data2) }
