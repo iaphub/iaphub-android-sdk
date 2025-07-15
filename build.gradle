@@ -1,6 +1,6 @@
 buildscript {
     ext.kotlinVersion = '1.8.0'
-    ext.minVersion = 19
+    ext.minVersion = 21
     ext.compileVersion = 34
     repositories {
         mavenCentral()
