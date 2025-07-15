@@ -65,7 +65,7 @@ internal class GooglePlay: Store, PurchasesUpdatedListener, BillingClientStateLi
       this.processPurchase(item.data, item.date, completion)
     }
     // Create billing instance
-    this.billing = BillingClient.newBuilder(context).enablePendingPurchases().setListener(this).build()
+    this.billing = BillingClient.newBuilder(context).enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build()).setListener(this).build()
   }
 
   /**
