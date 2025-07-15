@@ -47,12 +47,9 @@ dependencies {
     testRuntimeOnly "org.junit.vintage:junit-vintage-engine:5.8.1"
 }
 
-allprojects {
-    plugins.withId("com.vanniktech.maven.publish") {
-        mavenPublish {
-            sonatypeHost = "S01"
-        }
-    }
-}
-
 apply plugin: 'com.vanniktech.maven.publish'
+
+mavenPublishing {
+    publishToMavenCentral()
+    signAllPublications()
+}
