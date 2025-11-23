@@ -873,7 +873,7 @@ internal class User {
    * Update user with data
    */
   private fun update(data: Map<String, Any>, completion: (IaphubError?) -> Unit) {
-    val productsForSale = Util.parseItems<Product>(data["productsForSale"]) { err, item ->
+    val productsForSale = Util.parseItems(data["productsForSale"], ::Product) { err, item ->
       IaphubError(
         IaphubErrorCode.unexpected,
         IaphubUnexpectedErrorCode.update_item_parsing_failed,
@@ -881,7 +881,7 @@ internal class User {
         params=mapOf("item" to item)
       )
     }
-    val activeProducts = Util.parseItems<ActiveProduct>(data["activeProducts"]) { err, item ->
+    val activeProducts = Util.parseItems(data["activeProducts"], ::ActiveProduct) { err, item ->
       IaphubError(
         IaphubErrorCode.unexpected,
         IaphubUnexpectedErrorCode.update_item_parsing_failed,
@@ -889,7 +889,7 @@ internal class User {
         params=mapOf("item" to item)
       )
     }
-    val events = Util.parseItems<Event>(data["events"], allowNull=true) { err, item ->
+    val events = Util.parseItems(data["events"], ::Event, allowNull=true) { err, item ->
       IaphubError(
         IaphubErrorCode.unexpected,
         IaphubUnexpectedErrorCode.update_item_parsing_failed,
@@ -1127,7 +1127,7 @@ internal class User {
             params=mapOf("fetchDate" to jsonMap["fetchDate"])
           )
         }
-        this.productsForSale = Util.parseItems<Product>(jsonMap["productsForSale"]) { err, item ->
+        this.productsForSale = Util.parseItems(jsonMap["productsForSale"], ::Product) { err, item ->
           IaphubError(
             IaphubErrorCode.unexpected,
             IaphubUnexpectedErrorCode.get_cache_data_item_parsing_failed,
@@ -1135,7 +1135,7 @@ internal class User {
             params=mapOf("item" to item)
           )
         }
-        this.filteredProductsForSale = Util.parseItems<Product>(jsonMap["filteredProductsForSale"], allowNull = true)
+        this.filteredProductsForSale = Util.parseItems(jsonMap["filteredProductsForSale"], ::Product, allowNull = true)
         { err, item ->
           IaphubError(
             IaphubErrorCode.unexpected,
@@ -1144,7 +1144,7 @@ internal class User {
             params=mapOf("item" to item)
           )
         }
-        this.activeProducts = Util.parseItems<ActiveProduct>(jsonMap["activeProducts"]) { err, item ->
+        this.activeProducts = Util.parseItems(jsonMap["activeProducts"], ::ActiveProduct) { err, item ->
           IaphubError(
             IaphubErrorCode.unexpected,
             IaphubUnexpectedErrorCode.get_cache_data_item_parsing_failed,

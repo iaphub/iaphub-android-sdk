@@ -109,7 +109,7 @@ internal object Util {
   /*
    * Parse items
    */
-  inline fun <reified T: Parsable>parseItems(data: Any?, allowNull: Boolean = false, failure: (Exception, Map<String, Any>?) -> Unit): List<T> {
+  fun <T: Parsable>parseItems(data: Any?, factory: (Map<String, Any?>) -> T, allowNull: Boolean = false, failure: (Exception, Map<String, Any>?) -> Unit): List<T> {
     val arr: List<Map<String, Any>>? = (data as? List<Map<String, Any>>)
     val items: MutableList<T> = mutableListOf()
 
@@ -122,7 +122,7 @@ internal object Util {
 
     arr.forEach { elem ->
       try {
-        val item = T::class.constructors.first { it.parameters.isEmpty() == false }.call(elem)
+        val item = factory(elem)
         items.add(item)
       }
       catch (err: Exception) {
