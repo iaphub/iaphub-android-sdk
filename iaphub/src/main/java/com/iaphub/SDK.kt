@@ -5,11 +5,11 @@ import android.content.Context
 import android.os.Build
 import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleObserver
-import androidx.lifecycle.OnLifecycleEvent
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 
-open class SDK: LifecycleObserver
+open class SDK: LifecycleEventObserver
 {
   internal var store: Store? = null
   internal var user: User? = null
@@ -345,9 +345,17 @@ open class SDK: LifecycleObserver
   }
 
   /**
+   * Lifecycle event observer
+   */
+  override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
+    if (event == Lifecycle.Event.ON_START) {
+      onAppForeground()
+    }
+  }
+
+  /**
    * Triggered when the app is going to the foreground
    */
-  @OnLifecycleEvent(Lifecycle.Event.ON_START)
   private fun onAppForeground() {
     var user = this.user
     // Refresh user (only if it has already been fetched)
