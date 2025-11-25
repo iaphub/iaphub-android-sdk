@@ -50,5 +50,8 @@ apply plugin: 'com.vanniktech.maven.publish'
 
 mavenPublishing {
     publishToMavenCentral()
-    signAllPublications()
+    // Only sign when not publishing to Maven Local
+    if (!gradle.startParameter.taskNames.any { it.contains("ToMavenLocal") }) {
+        signAllPublications()
+    }
 }
